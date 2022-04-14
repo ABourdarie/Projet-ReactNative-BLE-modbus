@@ -26,14 +26,6 @@ import {
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
 
-import HelloWorldApp from './components/HelloWorldComponent';
-import Cat from './components/Cat';
-import Cafe from './props/Cat';
-import Bonjour from './props/Bonjour';
-import Translator from './components/TranslatorComponent';
-
-
-
 const Section = ({children, title}): Node => {
   const isDarkMode = useColorScheme() === 'dark';
   return (
@@ -90,19 +82,6 @@ const App: () => Node = () => {
           </Section>
           <Section title="Learn More">
             Read the docs to discover what to do next:
-          </Section>
-          <Section title="Section personnelle">
-            Premier essai de modification sur l app
-            <HelloWorldApp/>
-            {"\n"}
-            <Cat/>
-            {"\n"}
-            <Cafe/>
-            {"\n"}
-            <Bonjour/>
-            {"\n"}
-            <Translator/>
-            {"\n"}
           </Section>
           <LearnMoreLinks />
         </View>
