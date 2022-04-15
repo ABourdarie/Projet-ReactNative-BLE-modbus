@@ -3,7 +3,10 @@ import { Buffer } from 'buffer';
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableHighlight, SafeAreaView, Alert, Button, PermissionsAndroid } from 'react-native';
 import { BleManager } from 'react-native-ble-plx';
+import moment from 'moment';
 import { TouchableOpacity } from 'react-native-web';
+import HTMLtoPDF from './htmlToPdfExample';
+
 
 export const manager = new BleManager();
 
@@ -64,8 +67,28 @@ const requestPermission = async () => {
             if(characteristic.isReadable) {
               console.log(characteristic.uuid)
               selectedDevice.readCharacteristicForService(service.uuid, characteristic.uuid)
-              .then(characteristic => /*console.log(characteristic.value))*/
-              console.log(Buffer.from(characteristic.value.toString(), 'base64').readUIntBE(3, 4)))
+              .then((characteristic) => { 
+                console.log(Buffer.from(characteristic.value.toString(), 'base64').readUIntBE(3, 4))
+                const timestamp = new Date(Buffer.from(characteristic.value.toString(), 'base64').readUIntBE(3, 4))
+
+                // Create a new JavaScript Date object based on the timestamp
+                // multiplied by 1000 so that the argument is in milliseconds, not seconds.
+                var date = new Date(timestamp * 1000);
+                var year = date.getFullYear();
+                var month =  "0" +date.getMonth();
+                var day =  "0" +date.getDay();
+                // Hours part from the timestamp
+                var hours = date.getHours();
+                // Minutes part from the timestamp
+                var minutes = "0" + date.getMinutes();
+                // Seconds part from the timestamp
+                var seconds = "0" + date.getSeconds();
+
+                //C'est pas la bonne date
+                var formattedTime = year + '/' + month + '/' + day + " / " + hours + ':' + minutes + ':' + seconds;
+
+                console.log(formattedTime);
+              })
               }
           })
         })
@@ -100,6 +123,8 @@ const BluetoothScanner = () => {
   const [selectedDevice, setSelectedDevice] = useState({});
 
 
+ 
+
   useEffect(() => {
     manager.onStateChange((state) => {
       const subscription = manager.onStateChange(async (state) => {
@@ -115,60 +140,57 @@ const BluetoothScanner = () => {
   }, [manager]);
 
   return (
-    <View style={{flex:1, padding:10}}>
-      <View style={{flex:1, padding:10, width:200}}>
-        <Text style={{fontWeight: "bold"}}>Bluetooth Log ({logCount})</Text>
+    <><HTMLtoPDF /><View style={{ flex: 1, padding: 10 }}>
+      <View style={{ flex: 1, padding: 10, width: 200 }}>
+        <Text style={{ fontWeight: "bold" }}>Bluetooth Log ({logCount})</Text>
         <FlatList
           data={logData}
-          renderItem={({item}) => {
-            return (<Text>{item}</Text>)
-          }}
-        />
+          renderItem={({ item }) => {
+            return (<Text>{item}</Text>);
+          } } />
         <Button
           title="Turn On Bluetooth"
-          width = "2000px"
+          width="2000px"
           onPress={async () => {
-            const btState = await manager.state()
+            const btState = await manager.state();
             // test is bluetooth is supported
-            if (btState==="Unsupported") {
+            if (btState === "Unsupported") {
               alert("Bluetooth is not supported");
               return (false);
             }
             // enable if it is not powered on
-            if (btState!=="PoweredOn") {
+            if (btState !== "PoweredOn") {
               await manager.enable();
             } else {
               await manager.disable();
             }
             return (true);
-          }}
-        />
-    </View>
+          } } />
+      </View>
 
-      <SafeAreaView  style={{flex:2, padding:10}}>
-        <Text style={{fontWeight: "bold"}}>Scanned Devices ({deviceCount})</Text>
- 
-          <FlatList
-            data={Object.values(scannedDevices)}
-            renderItem={({item}) => {
-                return (
-                  <TouchableHighlight
-                    onPress={() => {getItem(item.name, item.id),  setSelectedDevice(item)}}
-                    underlayColor={"#ffffff"}
-                  >
-                    <Text>{`${item.name} (${item.id})`}</Text>
-                  </TouchableHighlight>
-                );
-            }}
-            ItemSeparatorComponent={ItemDivider}
-          />
-              
+      <SafeAreaView style={{ flex: 2, padding: 10 }}>
+        <Text style={{ fontWeight: "bold" }}>Scanned Devices ({deviceCount})</Text>
+
+        <FlatList
+          data={Object.values(scannedDevices)}
+          renderItem={({ item }) => {
+            return (
+              <TouchableHighlight
+                onPress={() => { getItem(item.name, item.id), setSelectedDevice(item); } }
+                underlayColor={"#ffffff"}
+              >
+                <Text>{`${item.name} (${item.id})`}</Text>
+              </TouchableHighlight>
+            );
+          } }
+          ItemSeparatorComponent={ItemDivider} />
+
         <Button
           title="Scan Devices"
           onPress={async () => {
-            const btState = await manager.state()
+            const btState = await manager.state();
             // test if bluetooth is powered on
-            if (btState!=="PoweredOn") {
+            if (btState !== "PoweredOn") {
               alert("Bluetooth is not powered on");
               return (false);
             }
@@ -176,78 +198,81 @@ const BluetoothScanner = () => {
             const permission = await requestPermission();
             if (permission) {
               manager.startDeviceScan(null, null, async (error, device) => {
-                  // error handling
-                  if (error) {
-                    console.log(error);
-                    return
-                  }
-                  // found a bluetooth device
-                  if (device && device.name === "Lide_BLE") {
-                    console.log(`${device.name} (${device.id})}`);
-                    const newScannedDevices = scannedDevices;
-                    newScannedDevices[device.id] = device;
-                    await setDeviceCount(Object.keys(newScannedDevices).length);
-                    await setScannedDevices(scannedDevices);
-                  }
+                // error handling
+                if (error) {
+                  console.log(error);
+                  return;
+                }
 
-                  // Partie de test
 
+                var tempName = null
+                if (device.name != null) {
+                  tempName = device.name.substring(0,4)
+                } else {
+                  tempName = null
+                }
+                // found a bluetooth device
+                if (device && (tempName === "Lide" || tempName === "LIDE")) {
+                  console.log(`${device.name} (${device.id})}`);
+                  const newScannedDevices = scannedDevices;
+                  newScannedDevices[device.id] = device;
+                  await setDeviceCount(Object.keys(newScannedDevices).length);
+                  await setScannedDevices(scannedDevices);
+                }
+
+                // Partie de test
                 //   if (device.name === "MY_DEVICE_NAME") {
                 //     manager
                 //         .connectToDevice(device.id, {
                 //             autoconnect: true,
                 //             timeout: BLUETOOTH_TIMEOUT
-
                 //         })
                 //     // ............
                 // }
-
-                  // fin de partie de test 
+                // fin de partie de test 
               });
             }
             return (true);
-          }}
-        />
-      </SafeAreaView >
+          } } />
+      </SafeAreaView>
 
-      <View style={{flex:3, padding:10}}>
+      <View style={{ flex: 3, padding: 10 }}>
 
-        <Text style={{fontWeight: "bold"}}> ({selectedDevice.name}) / ({selectedDevice.id})</Text>
-        
+        <Text style={{ fontWeight: "bold" }}> ({selectedDevice.name}) / ({selectedDevice.id})</Text>
+
 
         <Button
           title="Connect"
           onPress={async () => {
             connectDevice(selectedDevice);
-          }}
-        />
+          } } />
 
 
       </View>
 
-      <View style={{flex:4
-        , padding:10}}>
-        
+      <View style={{
+        flex: 4,
+        padding: 10
+      }}>
+
         <Button
           title="disconnect"
           onPress={async () => {
-            const btState = await manager.state()
-            checkco
+            const btState = await manager.state();
+            checkco;
             //on arrete le scan et on reset l'appareil selectionné   
-            manager.cancelDeviceConnection("00:1E:AC:03:33:49")   
-            manager.cancelDeviceConnection("00:1E:AC:01:02:03")    
-            alert("arret du scan et fin de selection")
-            checkco
+            manager.cancelDeviceConnection(selectedDevice.id);
+            alert("arret du scan et fin de selection");
+            checkco;
             return (true);
-          }}
-        />
+          } } />
 
       </View>
 
 
 
 
-    </View>
+    </View></>
   );
 };
 
