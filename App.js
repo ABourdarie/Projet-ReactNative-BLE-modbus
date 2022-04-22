@@ -5,10 +5,11 @@ import { Button, View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import BluetoothScanner from './src/BluetoothScanner';
+import ChartView from './src/Chart';
 
 function HomeScreen({ navigation }) {
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ flex: 2, alignItems: 'center', justifyContent: 'center' }}>
       <Text>Home Screen</Text>
       <Button
         title="Go to Details"
@@ -24,6 +25,15 @@ function HomeScreen({ navigation }) {
         title="Scanning menu"
         onPress={() => {
           navigation.navigate('Scan', {
+            itemId: 86,
+            otherParam: 'anything you want here',
+          });
+        }}
+      />
+      <Button
+        title="chart view"
+        onPress={() => {
+          navigation.navigate('Chart', {
             itemId: 86,
             otherParam: 'anything you want here',
           });
@@ -68,6 +78,7 @@ function App() {
       />
         <Stack.Screen name="Details" component={DetailsScreen} />
         <Stack.Screen name="Scan" component={BluetoothScanner} />
+        <Stack.Screen name="Chart" component={ChartView} />
       </Stack.Navigator>
     </NavigationContainer>
   );
