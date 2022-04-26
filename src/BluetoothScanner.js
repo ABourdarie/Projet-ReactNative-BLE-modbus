@@ -3,7 +3,6 @@ import { Buffer } from 'buffer';
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableHighlight, SafeAreaView, Alert, Button, PermissionsAndroid } from 'react-native';
 import { BleManager } from 'react-native-ble-plx';
-import moment from 'moment';
 import { TouchableOpacity } from 'react-native-web';
 import HTMLtoPDF from './htmlToPdfExample';
 
