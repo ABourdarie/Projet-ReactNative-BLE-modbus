@@ -60,13 +60,34 @@ const imgMicrolide = <Image source={require('./../images/logo_MICROLIDE.png')} s
   for (let index = 0; index < NBDATE30; index++) {
     DateActuelle = moment().add(60, 'seconds').format('hh:mm A');
     mesuresVoie1Cuisine.push(new Mesure(calculateTemp(),DateActuelle))
-    mesuresVoie2Cuisine.push(new Mesure(calculateTemp(),DateActuelle))
-    mesuresVoie1Cave.push(new Mesure(calculateTemp(),DateActuelle))
-    mesuresVoie2Cave.push(new Mesure(calculateTemp(),DateActuelle))
   };
 
+  var lastValue = 0;
+  var DateActuelle = DateDebut;
 
-  //On a generé les valeurs, maintenant il nous faut les sutructures
+  for (let index = 0; index < NBDATE30; index++) {
+    DateActuelle = moment().add(60, 'seconds').format('hh:mm A');
+    mesuresVoie2Cuisine.push(new Mesure(calculateTemp(),DateActuelle))
+  }
+
+  var lastValue = 0;
+  var DateActuelle = DateDebut;
+
+  for (let index = 0; index < NBDATE30; index++) {
+    DateActuelle = moment().add(60, 'seconds').format('hh:mm A');
+    mesuresVoie1Cave.push(new Mesure(calculateTemp(),DateActuelle))
+  }
+
+  var lastValue = 0;
+  var DateActuelle = DateDebut;
+
+  for (let index = 0; index < NBDATE30; index++) {
+    DateActuelle = moment().add(60, 'seconds').format('hh:mm A');
+    mesuresVoie2Cave.push(new Mesure(calculateTemp(),DateActuelle))
+  }
+  
+  
+  //On fait une structure afin de simuler plusieurs lides/relevés
   function Lide(nom, tableauCapteur) {
     this.nom = nom;
     this.tableauCapteur = tableauCapteur;
@@ -76,15 +97,15 @@ const imgMicrolide = <Image source={require('./../images/logo_MICROLIDE.png')} s
     this.nom = nom;
     this.tableauValeurs = tableauValeurs;
   }
-
+  
   var tableauCapteurCuisine = [
-    new Capteur('Voie1', mesuresVoie1Cuisine),
-    new Capteur('Voie2', mesuresVoie2Cuisine),
+    new Capteur('Voie1Cuisine', mesuresVoie1Cuisine),
+    new Capteur('Voie2Cuisine', mesuresVoie2Cuisine),
   ]
-
+  
   var tableauCapteurCave = [
-    new Capteur('Voie1', mesuresVoie1Cave),
-    new Capteur('Voie2', mesuresVoie2Cave),
+    new Capteur('Voie1Cave', mesuresVoie1Cave),
+    new Capteur('Voie2Cave', mesuresVoie2Cave),
   ]
   var tableauLides = [
     new Lide('Cuisine', tableauCapteurCuisine),
@@ -94,48 +115,12 @@ const imgMicrolide = <Image source={require('./../images/logo_MICROLIDE.png')} s
   
 //Partie de test
 
-console.log(tableauLides[0].tableauCapteur[0].tableauValeurs[750])
-
-  //ancienne fonction de calcul de point
-
-
-function temperaturesDatees(temperature, date, heure) {
-  this.temperature = temperature;
-  this.date = date;
-  this.heure = heure;
-}
-
-  var date = new Date(98, 1);
-  
-  var temperatureEnregistrées = []
-  var tableauAvecTempUniquement = []
-  var tableauAvecDateUniquement = []
-  
-  var temperatureEnregistrées10 = []
-  var tableauAvecTempUniquement10 = []
-  var tableauAvecDateUniquement10 = []
-  
-  
-  for (let index = 0; index < NBDATE10; index++) {
-      temperatureEnregistrées.push(new temperaturesDatees(calculateTemp(),date.getDate(),date.getHours()))
-      tableauAvecTempUniquement.push(temperatureEnregistrées[index].temperature)
-      if (!tableauAvecDateUniquement.indexOf(temperatureEnregistrées[index].date)){
-        tableauAvecDateUniquement.push(temperatureEnregistrées[index].date)
-      }
-    };
-    
-    temperatureEnregistrées10.push()
-    
-    for (let index = 0; index < NBDATE30; index++) {
-      temperatureEnregistrées10.push(new temperaturesDatees(calculateTemp(),date.getDate(),date.getHours()))
-      tableauAvecTempUniquement10.push(temperatureEnregistrées10[index].temperature)
-      if (!tableauAvecDateUniquement10.indexOf(temperatureEnregistrées10[index].date)){
-        tableauAvecDateUniquement10.push(temperatureEnregistrées10[index].date)
-      }
-    }
+console.log(tableauLides[0].tableauCapteur[0].tableauValeurs[0].valeur)
+console.log(tableauLides[0].tableauCapteur[1].tableauValeurs[0].valeur)
+console.log(tableauLides[1].tableauCapteur[0].tableauValeurs[0].valeur)
+console.log(tableauLides[1].tableauCapteur[1].tableauValeurs[0].valeur)
 
 
-    
     //Partie fonction du pdf
     
     async function createPDF(imagetopdf) {
@@ -165,7 +150,6 @@ function temperaturesDatees(temperature, date, heure) {
 const ChartView = () => {
 
   const viewShotRef = React.useRef();
-  const viewShotRef2 = React.useRef();
 
   async function captureViewShot() {
     var hour = new Date();
@@ -177,8 +161,7 @@ const ChartView = () => {
     const imagebase64 = await viewShotRef.current.capture();
     pdfFinal += 
     `<img src=${imagebase64} alt="chart1"> 
-    <br> 
-    <img src=${ await viewShotRef2.current.capture()} alt="chart2">`;
+    <br> `;
     pdfFinal += 
     `<br> 
     <P style="top:auto; left:0; right: auto; bottom:0; width:500px; height:20px; position: absolute; font-size: 25px;">fait le :${dateDuJourF} à ${hour} </p>
@@ -186,53 +169,23 @@ const ChartView = () => {
       createPDF(pdfFinal);
   }
 
-class AreaChart30 extends React.PureComponent {
-  render() {
-
-    const contentInset = { top: 20, bottom: 20 }
-
-      return (
-        
-        <>
-    <Text style={{ fontSize: 10, fontWeight: "bold" }}>Voie 2:Cuisine sur 30 jours</Text>
-        <View style={{ height: 160, flexDirection: 'row' }}>
-          <YAxis
-            data={tableauAvecTempUniquement10}
-            contentInset={contentInset}
-            svg={{
-              fill: 'grey',
-              fontSize: 10,
-            }}
-            formatLabel={value => `${value}ºC`} />
-          <AreaChart
-            style={{ flex: 1, marginLeft: 10 }}
-            data={tableauAvecTempUniquement10}
-            contentInset={contentInset}
-            curve={shape.curveNatural}
-            svg={{
-              stroke: "rgb(0,0,0)",
-              strokeWidth: "1"
-            }}
-            children={{ y: "9" }}
-          >
-
-            <Grid />
-          </AreaChart>
-        </View></>
-      )
-  }
-}
-
 class AreaChart10 extends React.PureComponent {
   render() {
+
+    const tabTemperature = []
+
+    this.props.capteur.tableauValeurs.forEach((mesure) => {
+      tabTemperature.push(mesure.valeur)
+    })
   
     const contentInset = { top: 20, bottom: 20 }
 
       return (
-        <><Text style={{ fontSize: 10, fontWeight: "bold" }}>Voie 1: cave sur 10 jours</Text>
-        <View style={ { height: 160, flexDirection: 'row' } }>
+        <>
+        <Text style={{ fontSize: 10, fontWeight: "bold" }}>{this.props.capteur.nom}</Text>
+        <View style={ { height: 170, flexDirection: 'row', marginBottom:10 } }>
         <YAxis
-         data={tableauAvecTempUniquement}
+         data={tabTemperature}
          contentInset={ contentInset }
          svg={{
            fill: 'grey',
@@ -240,9 +193,11 @@ class AreaChart10 extends React.PureComponent {
          }}
          formatLabel={ value => `${value}ºC` }
         />
+        <Text>{console.log(this.props.capteur.nom)}</Text>
+        <Text>{console.log(tabTemperature[2])}</Text>
           <AreaChart
               style={{ flex: 1, marginLeft: 10 }}
-              data={tableauAvecTempUniquement}
+              data={tabTemperature}
               contentInset={contentInset}
               curve={shape.curveNatural}
               svg={{ stroke: "rgb(0,0,0)",
@@ -255,6 +210,29 @@ class AreaChart10 extends React.PureComponent {
           </View></>
       )
   }
+}
+
+
+function RenderComponent() {
+
+  //const List = []
+
+  const capteurs = []
+
+
+  tableauLides.forEach((lide) => {
+    //capteurs.push(<Text>{lide.nom}</Text>)
+    lide.tableauCapteur.forEach((capteur) => {
+      capteurs.push(capteur);
+    })
+  })
+  const list = capteurs.map(capteur => <AreaChart10 key={capteur.nom} capteur={capteur}/> )
+
+  return (
+    <View>
+      {list}
+    </View>
+  )
 }
 
 
@@ -272,11 +250,7 @@ return (
 
       <ViewShot  ref={viewShotRef}  options={{format:'png', quality:1.0}} >
       {MyImage}
-      <Text style={{ fontSize: 15, fontWeight: "bold" }}>{nomDuLide}</Text>
-        <AreaChart10/>
-      </ViewShot>
-      <ViewShot  ref={viewShotRef2}  options={{format:'png', quality:1.0}} >
-        <AreaChart30/>
+      <RenderComponent/>
       {imgMicrolide}
       </ViewShot>
       
