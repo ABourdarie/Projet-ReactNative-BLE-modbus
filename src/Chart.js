@@ -137,23 +137,23 @@ var pdfFinal = "";
   }
   
   var tableauCapteurCuisine = [
-    new Capteur('Voie1Cuisine', mesuresVoie1Cuisine),
-    new Capteur('Voie2Cuisine', mesuresVoie2Cuisine),
+    new Capteur('Cuisine: Voie1', mesuresVoie1Cuisine),
+    new Capteur('Cuisine: Voie2', mesuresVoie2Cuisine),
   ]
   
   var tableauCapteurCave = [
-    new Capteur('Voie1Cave', mesuresVoie1Cave),
-    new Capteur('Voie2Cave', mesuresVoie2Cave),
+    new Capteur('Cave: Voie1', mesuresVoie1Cave),
+    new Capteur('Cave: Voie2', mesuresVoie2Cave),
   ]
 
   var tableauCapteurFrigidaire = [
-    new Capteur('Voie1Frigidaire', mesuresVoie1Frigidaire),
-    new Capteur('Voie2Frigidaire', mesuresVoie2Frigidaire),
+    new Capteur('Frigidaire: Voie1', mesuresVoie1Frigidaire),
+    new Capteur('Frigidaire: Voie2', mesuresVoie2Frigidaire),
   ]
 
   var tableauCapteurGrenier = [
-    new Capteur('Voie1Grenier', mesuresVoie1Grenier),
-    new Capteur('Voie2Grenier', mesuresVoie2Grenier),
+    new Capteur('Grenier: Voie1', mesuresVoie1Grenier),
+    new Capteur('Grenier: Voie2', mesuresVoie2Grenier),
   ]
 
   var tableauLides = [
@@ -248,7 +248,7 @@ const ChartView = () => {
     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
     '
-    style=" width:128 ; height:48 ; position: absolute;"/>
+    style="left: 50; width:128 ; height:48 ; position: absolute;"/>
 
 
     <div style="top:0; left:auto; right: 0; width:400px; height:200px; position: absolute; font-size: 25px">Export du : ${moment(DateDebut).format("DD-MM-YYYY")} à ${moment(DateDebut).format("hh:mm:ss")} 
