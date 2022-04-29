@@ -1,6 +1,7 @@
 import { List } from 'native-base';
 import { Buffer } from 'buffer';
 import React, { useState, useEffect } from 'react';
+import { Platform, PlatformIOSStatic } from 'react-native'
 import { View, Text, FlatList, TouchableHighlight, SafeAreaView, Alert, Button, PermissionsAndroid } from 'react-native';
 import { BleManager } from 'react-native-ble-plx';
 import { TouchableOpacity } from 'react-native-web';
@@ -194,7 +195,13 @@ const BluetoothScanner = () => {
               return (false);
             }
             // explicitly ask for user's permission
-            const permission = await requestPermission();
+            var permission = false;
+            if (Platform.OS === 'ios') {
+              permission = true;
+            }
+            else {
+              permission = await requestPermission();
+            }
             if (permission) {
               manager.startDeviceScan(null, null, async (error, device) => {
                 // error handling
