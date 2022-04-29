@@ -5,7 +5,7 @@ import { Platform, PlatformIOSStatic } from 'react-native'
 import { View, Text, FlatList, TouchableHighlight, SafeAreaView, Alert, Button, PermissionsAndroid } from 'react-native';
 import { BleManager } from 'react-native-ble-plx';
 import { TouchableOpacity } from 'react-native-web';
-import HTMLtoPDF from './htmlToPdfExample';
+import HTMLtoPDF from './Alerts';
 
 
 export const manager = new BleManager();
