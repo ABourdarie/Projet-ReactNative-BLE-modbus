@@ -1,5 +1,5 @@
 import { List } from 'native-base';
-import { Buffer } from 'buffer';
+import { convertAbsoluteToRem } from 'native-base/lib/typescript/theme/tools';
 import React, { useState, useEffect } from 'react';
 import { Platform, PlatformIOSStatic } from 'react-native'
 import { View, Text, FlatList, TouchableHighlight, SafeAreaView, Alert, Button, PermissionsAndroid } from 'react-native';
@@ -9,6 +9,7 @@ import HTMLtoPDF from './Alerts';
 
 
 export const manager = new BleManager();
+var Buffer = require('buffer/').Buffer  // note: the trailing slash is important!
 
 const requestPermission = async () => {
   const granted = await PermissionsAndroid.request(
@@ -31,15 +32,6 @@ const requestPermission = async () => {
 
   }
 
-  const checkco = () => {
-    if(manager.isDeviceConnected("00:1E:AC:03:33:49")){
-      console.log("l'appareil est déjà connecté")
-    } else {
-      console.log("l'appareil n'est pas connecté")
-    }
-
-  }
-
 
   function connectDevice(selectedDevice) {
 
@@ -49,11 +41,11 @@ const requestPermission = async () => {
     manager.connectToDevice(selectedDevice.id)
     .then( async (selectedDevice) => {
       console.log("co réussie");
-        return await selectedDevice.discoverAllServicesAndCharacteristics()
+        return await manager.discoverAllServicesAndCharacteristicsForDevice(selectedDevice.id)
     })
     .then( async (selectedDevice) => {
        // Do work on device with services and characteristics
-       console.log('Services and characteristics découverts');
+       console.log('Services and characteristiques découverts');
         //return this.testChar(device)
         const services = await selectedDevice.services()
         console.log(services)
@@ -63,46 +55,43 @@ const requestPermission = async () => {
           const readCharacteristic = await manager.characteristicsForDevice(selectedDevice.id, service.uuid)
 
           readCharacteristic.forEach( async (characteristic) => {
-            
-            if(characteristic.isReadable) {
+
+            console.log(characteristic.uuid)
+
+            if ( characteristic.isWritableWithResponse) {
+              console.log(characteristic.uuid);
+              const bufR = Buffer.from([0x01, 0x04, 0x01, 0xF4, 0x00, 0x02, 0x31, 0xC5 ]).toString('base64');
+              console.log(bufR);
+              characteristic.writeWithResponse(bufR);
+            }
+
+            if (characteristic.isReadable) {
+
+            const readChar = await characteristic.read();
+        
               console.log(characteristic.uuid)
-              selectedDevice.readCharacteristicForService(service.uuid, characteristic.uuid)
-              .then((characteristic) => { 
-                console.log(Buffer.from(characteristic.value.toString(), 'base64').readUIntBE(3, 4))
-                const timestamp = new Date(Buffer.from(characteristic.value.toString(), 'base64').readUIntBE(3, 4))
-
-                // Create a new JavaScript Date object based on the timestamp
-                // multiplied by 1000 so that the argument is in milliseconds, not seconds.
-                var date = new Date(timestamp * 1000);
-                var year = date.getFullYear();
-                var month =  "0" +date.getMonth();
-                var day =  "0" +date.getDay();
-                // Hours part from the timestamp
-                var hours = date.getHours();
-                // Minutes part from the timestamp
-                var minutes = "0" + date.getMinutes();
-                // Seconds part from the timestamp
-                var seconds = "0" + date.getSeconds();
-
-                //C'est pas la bonne date
-                var formattedTime = year + '/' + month + '/' + day + " / " + hours + ':' + minutes + ':' + seconds;
-
-                console.log(formattedTime);
+              
+              await manager.readCharacteristicForDevice(selectedDevice.id, service.uuid, readChar.uuid)
+              .then(async (characteristic) => { 
+                console.log(characteristic.deviceID)
+                console.log(characteristic.value)
+                console.log(Buffer.from(characteristic.value.toString(), 'base64'))
+                const DateDuLide = new Date(Buffer.from(characteristic.value.toString(), 'base64').readUIntBE(3, 4) * 1000)
+                console.log(DateDuLide.toLocaleString());
               })
-              }
+
+            }
+
           })
         })
         // this.info("Setting notifications")
         //return this.setupNotifications(device)
     })
     .catch((error) => {
-        // Handle errors
+      console.log(error)
+        console.log("impossible de se connecter")
+        throw error;
     });
-
-
-    checkco()
-    
-    console.log("fin de co")
     
   }
 
@@ -265,11 +254,9 @@ const BluetoothScanner = () => {
           title="disconnect"
           onPress={async () => {
             const btState = await manager.state();
-            checkco;
             //on arrete le scan et on reset l'appareil selectionné   
-            manager.cancelDeviceConnection(selectedDevice.id);
+           await manager.cancelDeviceConnection(selectedDevice.id);
             alert("arret du scan et fin de selection");
-            checkco;
             return (true);
           } } />
 
