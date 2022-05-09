@@ -1,17 +1,3 @@
-var data;
-process.stdin.on('data', function(chunk) {
-  data = chunk
-});
-process.stdin.on('end', function() {
-  console.log(data);
-  var givenCrc = data.slice(data.length-2);
-  givenCrc = (data[1] << 7 | data[0]);
-  console.log(givenCrc);
-  var calculatedCrc = CRC(data.slice(0, data.length -2));
-  console.log(calculatedCrc);
-});
-process.stdin.resume();
-
 
 var POLY = 0xA001;
 var SEED = 0xFFFF;
@@ -31,3 +17,5 @@ function Calc_CRC(b, crc) {
   }
   return crc;
 }
+
+export {CRC}

@@ -6,10 +6,14 @@ import { View, Text, FlatList, TouchableHighlight, SafeAreaView, Alert, Button, 
 import { BleManager } from 'react-native-ble-plx';
 import { TouchableOpacity } from 'react-native-web';
 import HTMLtoPDF from './Alerts';
+import modbusBleRtu from './modbus';
+
 
 
 export const manager = new BleManager();
 var Buffer = require('buffer/').Buffer  // note: the trailing slash is important!
+
+require('./modbus');
 
 const requestPermission = async () => {
   const granted = await PermissionsAndroid.request(
@@ -35,6 +39,10 @@ const requestPermission = async () => {
 
   function connectDevice(selectedDevice) {
 
+    let serviceSelect;
+    let caracLect;
+    let caracErci;
+
     manager.stopDeviceScan();
     alert("fonction de connexion");
 
@@ -50,8 +58,12 @@ const requestPermission = async () => {
         const services = await selectedDevice.services()
         console.log(services)
         console.log("au dessus les services et dessous les caractéristiques")
+
         services.forEach( async (service) => {
           console.log("début caracteristique\n")
+          
+          serviceSelect = service;
+
           const readCharacteristic = await manager.characteristicsForDevice(selectedDevice.id, service.uuid)
 
           readCharacteristic.forEach( async (characteristic) => {
@@ -59,6 +71,7 @@ const requestPermission = async () => {
             console.log(characteristic.uuid)
 
             if ( characteristic.isWritableWithResponse) {
+              caracErci = characteristic;
               console.log(characteristic.uuid);
               const bufR = Buffer.from([0x01, 0x04, 0x01, 0xF4, 0x00, 0x02, 0x31, 0xC5 ]).toString('base64');
               console.log(bufR);
@@ -66,8 +79,9 @@ const requestPermission = async () => {
             }
 
             if (characteristic.isReadable) {
+              caracLect = characteristic;
 
-            const readChar = await characteristic.read();
+              const readChar = await characteristic.read();
         
               console.log(characteristic.uuid)
               
@@ -79,6 +93,37 @@ const requestPermission = async () => {
                 const DateDuLide = new Date(Buffer.from(characteristic.value.toString(), 'base64').readUIntBE(3, 4) * 1000)
                 console.log(DateDuLide.toLocaleString());
               })
+
+              if (typeof caracLect !== "undefined") {
+                console.log(selectedDevice.id);
+                console.log(serviceSelect.uuid);
+                console.log(caracErci.uuid);
+                console.log(caracLect.uuid);
+                  let modbusManager = await new modbusBleRtu(manager, selectedDevice.id, serviceSelect.uuid, caracErci.uuid, caracLect);
+                    await modbusManager.readHoldingRegisters(500,2)
+                    .then(async (timestamp) => {
+                      const DeuxiemeDateDuLide = new Date(timestamp * 1000)
+                      console.log(DeuxiemeDateDuLide.toLocaleString());
+                    })
+                    await modbusManager.readHoldingRegisters(502,1)
+                    .then(async (nbVoies) => {
+                      console.log("Nombre de voies : " + nbVoies)
+                    })
+                    await modbusManager.readHoldingRegisters(503,1)
+                    .then(async (nbVoiesMax) => {
+                      console.log("Nombre de voies Maximum : " + nbVoiesMax)
+                    })
+                    await modbusManager.readHoldingRegisters(504,1)
+                    .then(async (modele) => {
+                      console.log("Numero de modèle : " + modele)
+                    })
+                    await modbusManager.readHoldingRegisters(3000,107)
+                    .then(async (config) => {
+                      console.log("configuration buffer " + config)
+                    })
+
+                
+              }
 
             }
 
