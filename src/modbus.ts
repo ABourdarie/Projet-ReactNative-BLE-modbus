@@ -167,19 +167,22 @@ export default class modbusBleRtu {
      * @param {number} start the Data Address of the first register.
      * @param {Array} array the array of values to write to registers.
      */
-    public async writeFC16 ( start: number, array){
+    public async writeFC16 ( start: number, array: Buffer){
 
       // sanity check
       if (typeof start === "undefined") {
         return;
       }
 
+      let valueBuf = new Buffer.from(array, 'hex');
+
       const code = 16;
 
-      let dataLength = array.length;
-      if (Buffer.isBuffer(array)) {
-          // if array is a buffer it has double length
-          dataLength = array.length / 2;
+
+      let dataLength = valueBuf.length;
+      if (Buffer.isBuffer(valueBuf)) {
+          // if valueBuf is a buffer it has double length
+          dataLength = valueBuf.length / 2;
       }
 
       const codeLength = 7 + 2 * dataLength;
@@ -191,22 +194,119 @@ export default class modbusBleRtu {
       buf.writeUInt16BE(dataLength, 4);
       buf.writeUInt8(dataLength * 2, 6);
 
-      // copy content of array to buf
-      if (Buffer.isBuffer(array)) {
-          array.copy(buf, 7);
+      // copy content of valueBuf to buf
+      if (Buffer.isBuffer(valueBuf)) {
+        valueBuf.copy(buf, 7);
       } else {
           for (let i = 0; i < dataLength; i++) {
-              buf.writeUInt16BE(array[i], 7 + 2 * i);
+              buf.writeUInt16BE(valueBuf[i], 7 + 2 * i);
           }
       }
 
       // add crc bytes to buffer
       buf.writeUInt16LE(CRC(buf.slice(0, -2)), codeLength);
+      console.log(buf.toString('hex'))
 
-      // write buffer to characteristic
-      await this.manager.writeCharacteristicWithResponseForDevice(this.deviceId, this.service, this.carateristiqueEcri, buf.toString('base64'));
+      //write buffer to charac
+      console.log(buf.toString('base64'));
+
+      const tailleDuMessage = 20;
+
+      if (buf.toString('hex').length > tailleDuMessage) {
+
+        let newBuffer = new Buffer.from(buf ,'hex')
+        let actualSlice;
+        let count = 0;
+        let tailleRestante = newBuffer.length;
+        
+        while (tailleRestante > tailleDuMessage) {
+          newBuffer = new Buffer.from(buf ,'hex')
+          actualSlice = newBuffer.slice(0 + count,tailleDuMessage + count)
+          console.log(actualSlice.toString('base64'));
+          await this.manager.writeCharacteristicWithResponseForDevice(this.deviceId, this.service, this.carateristiqueEcri, actualSlice.toString('base64'))
+          .catch((error) => {
+            console.log(error)
+              console.log("impossible d'écrire sur la characteristique la partie du buffer de configuration")
+            throw error;
+          } )
+          count = count + tailleDuMessage;
+          tailleRestante = tailleRestante - tailleDuMessage;
+        }
+        
+        newBuffer = new Buffer.from(buf ,'hex')
+        actualSlice = newBuffer.slice(0 + count, newBuffer.length)
+        console.log(actualSlice.toString('base64'))
+        await this.manager.writeCharacteristicWithResponseForDevice(this.deviceId, this.service, this.carateristiqueEcri, actualSlice.toString('base64'))
+
+
+      } else {
+        await this.manager.writeCharacteristicWithResponseForDevice(this.deviceId, this.service, this.carateristiqueEcri, buf.toString('base64'));
+      }
+
+      
 
   }
+
+  /**
+     * Fonction suplémentaire avant FC=16 "Formater des elements de config".
+     *
+     * @param {number} registreDuParametreAModifier registre du paramètre que l'on veut modifier dans la config.
+     * @param {number} nombreDeRegistreAEcrire Le nombre de registre correspondant a ce parametre.
+     * @param {Array} valeursEnTableau les nouvelles valeurs sous forme de tableau(Array).
+     *
+     */
+   public async writeConfigReg ( registreDuParametreAModifier: number, nombreDeRegistreAEcrire: number, valeursEnBuff: Buffer){
+
+    const DEBUTDUREGISTRECONF = 3000
+    const NOMBREDEREGISTRE = 107;
+
+    const premiereValeurAEcrire = 6 + (registreDuParametreAModifier - DEBUTDUREGISTRECONF)*2
+
+    let config = await this.readHoldingRegisters(DEBUTDUREGISTRECONF,NOMBREDEREGISTRE)
+    //let arr = Array.prototype.slice.call(config, 0)
+    //resultat = arr;
+    let buffEntier = config.toString('hex');
+    
+    console.log(buffEntier);
+    console.log(buffEntier[1]);
+    console.log(buffEntier[3]);
+    console.log(buffEntier[14]);
+
+    let chaineSansDebEtCrc = buffEntier.slice(6,-4)
+    console.log(chaineSansDebEtCrc)
+
+    let valeurACopier = new Buffer.from(valeursEnBuff, 'hex')
+
+    let chainePreValeur =  new Buffer.from(buffEntier.slice(6, premiereValeurAEcrire * 2 - 6), 'hex')
+    let chainePostValeur =  new Buffer.from(buffEntier.slice(premiereValeurAEcrire * 2 - 6 + nombreDeRegistreAEcrire * 2 , -4), 'hex')
+
+    console.log(chainePreValeur)
+    console.log(chainePostValeur)
+
+    let arrCompte = new Array(valeursEnBuff.toString('hex'))
+
+    console.log("taille du mot : " + arrCompte[0].length);
+
+    const array = new Array((nombreDeRegistreAEcrire * 2 - arrCompte[0].length) / 2 - 1).fill(0);
+
+    console.log("nombre de zero : " + array.length)
+
+    console.log("Taille totale : " + array.length + "*2 + " + arrCompte[0].length + "/50")
+    let bufRemplissage = new Buffer.from(array, 'hex' );
+
+    console.log("Buffer de remplissage " + bufRemplissage.toString('hex'))
+    let tabBuffer = new Array(chainePreValeur, valeurACopier, bufRemplissage, new Buffer.from([0]), chainePostValeur)
+
+    console.log(tabBuffer)
+
+    var buffATransferer =  Buffer.concat(tabBuffer)
+
+    console.log(buffATransferer)
+
+    this.writeFC16(DEBUTDUREGISTRECONF,buffATransferer.toString('hex'))
+}
+
+  
 
 
   /** Execute WriteSingleCoil Request (Function Code 0x05)

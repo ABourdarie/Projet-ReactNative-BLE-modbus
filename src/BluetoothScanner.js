@@ -120,6 +120,17 @@ const requestPermission = async () => {
                     await modbusManager.readHoldingRegisters(3000,107)
                     .then(async (config) => {
                       console.log("configuration buffer " + config)
+                      var arr = Array.prototype.slice.call(config, 0)
+                      console.log(arr.length)
+                      console.log(arr)
+                      let NouveauNom = "LIDE 2V Alexandre";
+                      let AncienNom = "LIDE 2V Alex";
+                      console.log(NouveauNom + "/" + AncienNom)
+                      NouveauNom = ascii_to_hex(NouveauNom)
+                      AncienNom = ascii_to_hex(AncienNom);
+                      console.log(NouveauNom + "/" + AncienNom)
+                      modbusManager.writeConfigReg(3013,25,NouveauNom)
+
                     })
 
                 
@@ -139,6 +150,17 @@ const requestPermission = async () => {
     });
     
   }
+
+  function ascii_to_hex(str)
+  {
+	var arr1 = [];
+	for (var n = 0, l = str.length; n < l; n ++) 
+     {
+		var hex = Number(str.charCodeAt(n)).toString(16);
+		arr1.push(hex);
+	 }
+	return arr1.join('');
+   }
 
 
   
