@@ -121,9 +121,26 @@ export default class modbusBleRtu {
     if (count <= 10){
       return (buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').readUIntBE(3, count * 2))
     }
-    return (buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64')).toString('hex')
+
+    //Verfication du checksum
+    if (swap16(CRC(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(0,-2))).toString(16)
+    == buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(-2).toString('hex')) {
+
+      return (buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64')).toString('hex')
+    } else {
+      return "Mauvais checksum"
+    }
+  
+    
+
+    function swap16(val) {
+      return ((val & 0xFF) << 8)
+             | ((val >> 8) & 0xFF);
+    }  
+  
   }
 
+  
   /** Execute ReadInputRegisters Request (Function Code 0x04)
    * @param {number} start Start Address.
    * @param {number} count Coil Quantity.
@@ -255,56 +272,131 @@ export default class modbusBleRtu {
      * @param {Array} valeursEnTableau les nouvelles valeurs sous forme de tableau(Array).
      *
      */
-   public async writeConfigReg ( registreDuParametreAModifier: number, nombreDeRegistreAEcrire: number, valeursEnBuff: Buffer){
+   public async writeConfigReg (debutDuRegConf:number, nombreDeRegistre:number, registreDuParametreAModifier: number, nombreDeRegistreAEcrire: number, valeursEnBuff: any, bufferInitial: Buffer){
 
-    const DEBUTDUREGISTRECONF = 3000
-    const NOMBREDEREGISTRE = 107;
-
-    const premiereValeurAEcrire = 6 + (registreDuParametreAModifier - DEBUTDUREGISTRECONF)*2
-
-    let config = await this.readHoldingRegisters(DEBUTDUREGISTRECONF,NOMBREDEREGISTRE)
-    //let arr = Array.prototype.slice.call(config, 0)
-    //resultat = arr;
-    let buffEntier = config.toString('hex');
+    const premiereValeurAEcrire = 3 + (registreDuParametreAModifier - debutDuRegConf)*2
     
-    console.log(buffEntier);
-    console.log(buffEntier[1]);
-    console.log(buffEntier[3]);
-    console.log(buffEntier[14]);
 
-    let chaineSansDebEtCrc = buffEntier.slice(6,-4)
-    console.log(chaineSansDebEtCrc)
+    let buffEntier = bufferInitial.toString('hex');
 
-    let valeurACopier = new Buffer.from(valeursEnBuff, 'hex')
-
-    let chainePreValeur =  new Buffer.from(buffEntier.slice(6, premiereValeurAEcrire * 2 - 6), 'hex')
-    let chainePostValeur =  new Buffer.from(buffEntier.slice(premiereValeurAEcrire * 2 - 6 + nombreDeRegistreAEcrire * 2 , -4), 'hex')
+    let chainePreValeur =  new Buffer.from(buffEntier.slice(0, premiereValeurAEcrire * 2  - 6 ), 'hex')
+    let chainePostValeur =  new Buffer.from(buffEntier.slice(premiereValeurAEcrire * 2  + nombreDeRegistreAEcrire * 2 - 6), 'hex')
 
     console.log(chainePreValeur)
     console.log(chainePostValeur)
 
-    let arrCompte = new Array(valeursEnBuff.toString('hex'))
+    console.log(typeof valeursEnBuff)
 
-    console.log("taille du mot : " + arrCompte[0].length);
+    let valeurACopier
 
-    const array = new Array((nombreDeRegistreAEcrire * 2 - arrCompte[0].length) / 2 - 1).fill(0);
+    let tabBuffer;
 
-    console.log("nombre de zero : " + array.length)
+    let buffATransferer;
 
-    console.log("Taille totale : " + array.length + "*2 + " + arrCompte[0].length + "/50")
-    let bufRemplissage = new Buffer.from(array, 'hex' );
+    
 
-    console.log("Buffer de remplissage " + bufRemplissage.toString('hex'))
-    let tabBuffer = new Array(chainePreValeur, valeurACopier, bufRemplissage, new Buffer.from([0]), chainePostValeur)
+    if( typeof valeursEnBuff == 'string') {
+
+      valeursEnBuff = this.ascii_to_hex(valeursEnBuff)
+
+      console.log("testPremiereFonc")
+
+      valeurACopier = new Buffer.from((valeursEnBuff), 'hex')
+
+    
+      let arrCompte = new Array(valeursEnBuff.toString())
+    
+      console.log("taille du mot : " + arrCompte[0].length);
+
+      const array = new Array((nombreDeRegistreAEcrire * 2 - arrCompte[0].length) / 2 - 1).fill(0);
+
+      console.log("nombre de zero : " + array.length)
+
+      console.log("Taille totale : " + array.length + "*2 + " + arrCompte[0].length + "/" + nombreDeRegistreAEcrire * 2 )
+      let bufRemplissage = new Buffer.from(array, 'hex' );
+
+      console.log("Buffer de remplissage " + bufRemplissage.toString('hex'))
+      tabBuffer = new Array(chainePreValeur, valeurACopier, bufRemplissage, new Buffer.from([0]), chainePostValeur)
+
+      buffATransferer =  Buffer.concat(tabBuffer)
+
+    } else {
+      console.log("test deuxième fonc")
+
+      chainePreValeur =  new Buffer.from(buffEntier.slice(6, premiereValeurAEcrire * 2 + 2 ), 'hex')
+      chainePostValeur =  new Buffer.from(buffEntier.slice(premiereValeurAEcrire * 2  + nombreDeRegistreAEcrire * 2 + 2 , -4), 'hex')
+
+      console.log(valeursEnBuff)
+
+      valeurACopier = new Buffer.from([valeursEnBuff], 'hex')
+
+      console.log(valeurACopier)
+
+      tabBuffer = new Array(chainePreValeur, valeurACopier, chainePostValeur)
+
+      buffATransferer =  Buffer.concat(tabBuffer)
+
+      buffATransferer.writeUInt16BE(valeursEnBuff, (registreDuParametreAModifier-debutDuRegConf) / 2);
+
+
+    }
 
     console.log(tabBuffer)
 
-    var buffATransferer =  Buffer.concat(tabBuffer)
+     buffATransferer =  Buffer.concat(tabBuffer)
 
     console.log(buffATransferer)
 
-    this.writeFC16(DEBUTDUREGISTRECONF,buffATransferer.toString('hex'))
+    return buffATransferer;
+
 }
+
+/**
+     * Fonction a appeler avec un tableau qui consigne toutes les modifications. Cette fonction va toutes les appliquer
+     *
+     * @param {number} registreDuParametreAModifier registre du paramètre que l'on veut modifier dans la config.
+     * @param {number} nombreDeRegistreAEcrire Le nombre de registre correspondant a ce parametre.
+     * @param {Array} TableauDesModifs toutes les modification a effectuer.
+     *
+     */
+ public async changeWholeConfig (debutDuRegConf:number, nombreDeRegistre:number, TableauDesModifs){
+
+  let registreActuel = await this.readHoldingRegisters(debutDuRegConf,nombreDeRegistre);
+
+  registreActuel = registreActuel.slice(6,-4)
+  console.log(registreActuel)
+
+  function Modifications(valeur, registreInital, nombreDeRegistre){
+    this.valeur = valeur;
+    this.registreInital = registreInital;
+    this.nombreDeRegistre = nombreDeRegistre;
+  }
+  
+  var TabDeModifs = [
+    new Modifications("TEMPE1", 4001, 12),
+    new Modifications(1, 4062, 1),
+    new Modifications(356, 4064, 1),
+  ]
+
+  //Il faudra remplacer le tableau de modif par celui passé en parametre
+  TabDeModifs.forEach(modification => {
+    registreActuel = this.writeConfigReg(debutDuRegConf, nombreDeRegistre, modification.registreInital, modification.nombreDeRegistre, modification.valeur, registreActuel)
+  });
+
+  await this.writeFC16(debutDuRegConf,registreActuel.toString('hex'))
+} 
+
+
+private ascii_to_hex(str)
+  {
+	var arr1 = [];
+	for (var n = 0, l = str.length; n < l; n ++) 
+     {
+		var hex = Number(str.charCodeAt(n)).toString(16);
+		arr1.push(hex);
+	 }
+	return arr1.join('');
+   }
 
   
 

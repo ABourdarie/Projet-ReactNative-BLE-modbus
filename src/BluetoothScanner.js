@@ -7,13 +7,28 @@ import { BleManager } from 'react-native-ble-plx';
 import { TouchableOpacity } from 'react-native-web';
 import HTMLtoPDF from './Alerts';
 import modbusBleRtu from './modbus';
+import moment from 'moment'; 
 
 
 
 export const manager = new BleManager();
 var Buffer = require('buffer/').Buffer  // note: the trailing slash is important!
+export let modBManager = new modbusBleRtu();
 
+//Il y a une dupplication volontaire en dessous, il faut trouver quelle est la meilleure méthode
+
+ 
+let serviceSelect;
+let caracLect;
+let caracErci;
+let tablLideEnreg = [];
+
+let enCours = false;
+let refreshIntervalId;
+var dt = new Date();
+moment.locale('fr');
 require('./modbus');
+
 
 const requestPermission = async () => {
   const granted = await PermissionsAndroid.request(
@@ -30,23 +45,104 @@ const requestPermission = async () => {
 
 
 
+
   const getItem = (name, id) => {
 
     Alert.alert(name + " / " + id);
 
   }
 
+  function sleep(ms) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
+  }
 
-  function connectDevice(selectedDevice) {
+  async function getTime() {
+    console.log("test date"); 
+      let time = await modBManager.readHoldingRegisters(500,2);
+      console.log(new Date(time * 1000).toLocaleString())
+      return (new Date(time * 1000).toLocaleString())
+  }
 
-    let serviceSelect;
-    let caracLect;
-    let caracErci;
+
+  async function getInfos() {
+    console.log(tablLideEnreg)
+    for (let index = 0; index < tablLideEnreg.length; index++) {
+      try {
+        const element = tablLideEnreg[index];
+        console.log(1)
+        await connectDevice(element);
+        console.log(2)
+        await testModbus(element); 
+        await manager.cancelDeviceConnection(element.id);
+      } catch (error) {
+        console.log(error + "impossible de se connecter")
+      }
+    }
+  }
+
+  async function testModbus(selectedDevice) {
+
+    console.log("testModbus ?")
+    modBManager = await new modbusBleRtu(manager, selectedDevice.id, serviceSelect.uuid, caracErci.uuid, caracLect);
+                    await modBManager.readHoldingRegisters(500,2)
+                    .then(async (timestamp) => {
+                      const DeuxiemeDateDuLide = new Date(timestamp * 1000)
+                      console.log(DeuxiemeDateDuLide.toLocaleString());
+                    })
+                    await modBManager.readHoldingRegisters(502,1)
+                    .then(async (nbVoies) => {
+                      console.log("Nombre de voies : " + nbVoies)
+                    })
+                    await modBManager.readHoldingRegisters(503,1)
+                    .then(async (nbVoiesMax) => {
+                      console.log("Nombre de voies Maximum : " + nbVoiesMax)
+                    })
+                    await modBManager.readHoldingRegisters(504,1)
+                    .then(async (modele) => {
+                      console.log("Numero de modèle : " + modele)
+                    })
+                    await modBManager.readHoldingRegisters(3000,107)
+                    .then(async (config) => {
+                      console.log("Configuration Génarale : " + config)
+                    })
+                    await modBManager.readHoldingRegisters(3000,107)
+                    .then(async (nomDAppareil) => {
+                      console.log("Nom de l'appareil : " + nomDAppareil)
+                    })
+                    await modBManager.readHoldingRegisters(596,67)
+                    .then(async (valeursVoies) => {
+                      console.log("Valeurs des voies : " + valeursVoies)
+                    })
+                    await modBManager.readHoldingRegisters(1100,63)
+                    .then(async (etatAlarme) => {
+                      console.log("Etat des alarmes : " + etatAlarme)
+                    })
+                    // await modBManager.readHoldingRegisters(3000,107)
+                    // .then(async (config) => {
+                    //   console.log("configuration buffer " + config)
+                    //   var arr = Array.prototype.slice.call(config, 0)
+                    //   console.log(arr.length)
+                    //   console.log(arr)
+                    //   let NouveauNom = "LIDE 2V Alexandre";
+                    //   let AncienNom = "LIDE 2V Alex";
+                    //   console.log(NouveauNom + "/" + AncienNom)
+                    //   // await modbusManager.changeWholeConfig(4000, 75, 0)
+                    //   // await modbusManager.writeConfigReg(3000, 107, 3013, 25, NouveauNom)
+                    //   // .then( async () => {
+                    //   //   console.log("Timing ?")
+                    //   //   await modbusManager.changeWholeConfig(4000, 75, 0)
+                    //   // })
+                    // })
+  }
+
+
+  async function connectDevice(selectedDevice) {
 
     manager.stopDeviceScan();
-    alert("fonction de connexion");
 
-    manager.connectToDevice(selectedDevice.id)
+    await manager.connectToDevice(selectedDevice.id)
     .then( async (selectedDevice) => {
       console.log("co réussie");
         return await manager.discoverAllServicesAndCharacteristicsForDevice(selectedDevice.id)
@@ -59,14 +155,16 @@ const requestPermission = async () => {
         console.log(services)
         console.log("au dessus les services et dessous les caractéristiques")
 
-        services.forEach( async (service) => {
+        for (let index = 0; index < services.length; index++) {
+          const service = services[index];
+        
           console.log("début caracteristique\n")
           
           serviceSelect = service;
 
           const readCharacteristic = await manager.characteristicsForDevice(selectedDevice.id, service.uuid)
 
-          readCharacteristic.forEach( async (characteristic) => {
+          await readCharacteristic.forEach( async (characteristic) => {
 
             console.log(characteristic.uuid)
 
@@ -85,64 +183,35 @@ const requestPermission = async () => {
         
               console.log(characteristic.uuid)
               
-              await manager.readCharacteristicForDevice(selectedDevice.id, service.uuid, readChar.uuid)
-              .then(async (characteristic) => { 
-                console.log(characteristic.deviceID)
-                console.log(characteristic.value)
-                console.log(Buffer.from(characteristic.value.toString(), 'base64'))
-                const DateDuLide = new Date(Buffer.from(characteristic.value.toString(), 'base64').readUIntBE(3, 4) * 1000)
-                console.log(DateDuLide.toLocaleString());
-              })
+              // await manager.readCharacteristicForDevice(selectedDevice.id, service.uuid, readChar.uuid)
+              // .then(async (characteristic) => { 
+              //   console.log(characteristic.deviceID)
+              //   console.log(characteristic.value)
+              //   console.log(Buffer.from(characteristic.value.toString(), 'base64'))
+              //   const DateDuLide = new Date(Buffer.from(characteristic.value.toString(), 'base64').readUIntBE(3, 4) * 1000)
+              //   console.log(DateDuLide.toLocaleString());
+              // })
+
+              
 
               if (typeof caracLect !== "undefined") {
                 console.log(selectedDevice.id);
                 console.log(serviceSelect.uuid);
                 console.log(caracErci.uuid);
-                console.log(caracLect.uuid);
-                  let modbusManager = await new modbusBleRtu(manager, selectedDevice.id, serviceSelect.uuid, caracErci.uuid, caracLect);
-                    await modbusManager.readHoldingRegisters(500,2)
-                    .then(async (timestamp) => {
-                      const DeuxiemeDateDuLide = new Date(timestamp * 1000)
-                      console.log(DeuxiemeDateDuLide.toLocaleString());
-                    })
-                    await modbusManager.readHoldingRegisters(502,1)
-                    .then(async (nbVoies) => {
-                      console.log("Nombre de voies : " + nbVoies)
-                    })
-                    await modbusManager.readHoldingRegisters(503,1)
-                    .then(async (nbVoiesMax) => {
-                      console.log("Nombre de voies Maximum : " + nbVoiesMax)
-                    })
-                    await modbusManager.readHoldingRegisters(504,1)
-                    .then(async (modele) => {
-                      console.log("Numero de modèle : " + modele)
-                    })
-                    await modbusManager.readHoldingRegisters(3000,107)
-                    .then(async (config) => {
-                      console.log("configuration buffer " + config)
-                      var arr = Array.prototype.slice.call(config, 0)
-                      console.log(arr.length)
-                      console.log(arr)
-                      let NouveauNom = "LIDE 2V Alexandre";
-                      let AncienNom = "LIDE 2V Alex";
-                      console.log(NouveauNom + "/" + AncienNom)
-                      NouveauNom = ascii_to_hex(NouveauNom)
-                      AncienNom = ascii_to_hex(AncienNom);
-                      console.log(NouveauNom + "/" + AncienNom)
-                      modbusManager.writeConfigReg(3013,25,NouveauNom)
-
-                    })
-
+                console.log(caracLect.uuid);     
                 
               }
 
+              
             }
-
+            
           })
-        })
+          
+        }
+        
         // this.info("Setting notifications")
         //return this.setupNotifications(device)
-    })
+      })
     .catch((error) => {
       console.log(error)
         console.log("impossible de se connecter")
@@ -150,21 +219,6 @@ const requestPermission = async () => {
     });
     
   }
-
-  function ascii_to_hex(str)
-  {
-	var arr1 = [];
-	for (var n = 0, l = str.length; n < l; n ++) 
-     {
-		var hex = Number(str.charCodeAt(n)).toString(16);
-		arr1.push(hex);
-	 }
-	return arr1.join('');
-   }
-
-
-  
-
  
 
 // BlueetoothScanner does:
@@ -177,9 +231,8 @@ const BluetoothScanner = () => {
   const [scannedDevices, setScannedDevices] = useState({});
   const [deviceCount, setDeviceCount] = useState(0);
   const [selectedDevice, setSelectedDevice] = useState({});
+  const [buttonColor, setButtonColor] = useState(false);
 
-
- 
 
   useEffect(() => {
     manager.onStateChange((state) => {
@@ -196,7 +249,9 @@ const BluetoothScanner = () => {
   }, [manager]);
 
   return (
-    <><HTMLtoPDF /><View style={{ flex: 1, padding: 10 }}>
+    <><HTMLtoPDF />
+    <Text> {moment(dt).format('hh-mm-ss')} </Text>
+    <View style={{ flex: 1, padding: 10 }}>
       <View style={{ flex: 1, padding: 10, width: 200 }}>
         <Text style={{ fontWeight: "bold" }}>Bluetooth Log ({logCount})</Text>
         <FlatList
@@ -281,17 +336,6 @@ const BluetoothScanner = () => {
                   await setDeviceCount(Object.keys(newScannedDevices).length);
                   await setScannedDevices(scannedDevices);
                 }
-
-                // Partie de test
-                //   if (device.name === "MY_DEVICE_NAME") {
-                //     manager
-                //         .connectToDevice(device.id, {
-                //             autoconnect: true,
-                //             timeout: BLUETOOTH_TIMEOUT
-                //         })
-                //     // ............
-                // }
-                // fin de partie de test 
               });
             }
             return (true);
@@ -304,18 +348,12 @@ const BluetoothScanner = () => {
 
 
         <Button
-          title="Connect"
+          title="add"
           onPress={async () => {
-            connectDevice(selectedDevice);
+            alert("ajout de Lide");
+            tablLideEnreg.push(selectedDevice)
+            // connectDevice(selectedDevice);
           } } />
-
-
-      </View>
-
-      <View style={{
-        flex: 4,
-        padding: 10
-      }}>
 
         <Button
           title="disconnect"
@@ -327,9 +365,51 @@ const BluetoothScanner = () => {
             return (true);
           } } />
 
+          <Button
+          title="Modbus"
+          onPress={async () => {
+            testModbus(selectedDevice);
+          } } />
+          
+          <Button
+          title="START"
+          onPress={async () => {
+            clearInterval(refreshIntervalId)
+            refreshIntervalId = setInterval(async () => {
+              if (!enCours) {
+                enCours = true;
+                await getInfos();
+                enCours = false;
+              }
+            } , 100);
+            
+          } } />
+
+          <Button
+          title="STOP"
+          color="#841584"
+          onPress={async () => {
+            clearInterval(refreshIntervalId)
+            } 
+          } />
+
+          <Button
+          title="Alerte"
+          color="#841584"
+          onPress={async () => {
+            if (buttonColor) {
+              setButtonColor(false)
+              Alert.alert('Interaction 1')
+            }
+             else {
+              setButtonColor(true)
+              Alert.alert('Interaction 2')
+            }
+            } 
+          } />
+
+
       </View>
-
-
 
 
     </View></>
