@@ -8,19 +8,21 @@ import { TouchableOpacity } from 'react-native-web';
 import HTMLtoPDF from './Alerts';
 import modbusBleRtu from './modbus';
 import moment from 'moment'; 
+import { EventRegister } from 'react-native-event-listeners'
+import base64 from 'react-native-base64';
+
 
 
 
 export const manager = new BleManager();
 var Buffer = require('buffer/').Buffer  // note: the trailing slash is important!
 export let modBManager = new modbusBleRtu();
-
-//Il y a une dupplication volontaire en dessous, il faut trouver quelle est la meilleure méthode
-
  
 let serviceSelect;
 let caracLect;
 let caracErci;
+let caracRecep;
+let caracEnv;
 let tablLideEnreg = [];
 
 let enCours = false;
@@ -61,6 +63,7 @@ const requestPermission = async () => {
   async function getTime() {
     console.log("test date"); 
       let time = await modBManager.readHoldingRegisters(500,2);
+      console.log(time)
       console.log(new Date(time * 1000).toLocaleString())
       return (new Date(time * 1000).toLocaleString())
   }
@@ -68,24 +71,95 @@ const requestPermission = async () => {
 
   async function getInfos() {
     console.log(tablLideEnreg)
-    for (let index = 0; index < tablLideEnreg.length; index++) {
+    for (let indexgetInfos = 0; indexgetInfos < tablLideEnreg.length; indexgetInfos++) {
       try {
-        const element = tablLideEnreg[index];
+        const element = tablLideEnreg[indexgetInfos];
         console.log(1)
         await connectDevice(element);
         console.log(2)
         await testModbus(element); 
+        console.log(3)
         await manager.cancelDeviceConnection(element.id);
       } catch (error) {
-        console.log(error + "impossible de se connecter")
+        console.log(error + " impossible de se connecter")
       }
     }
   }
 
+  function Mesure(indice, nMesure,timeStamp, valeurV1, valeurV2){
+    this.indice = indice;
+    this.nMesure = nMesure;
+    this.timeStamp = timeStamp;
+    this.valeurV1 = valeurV1;
+    this.valeurV2 = valeurV2;
+  }
+
+  async function monitorValues(AdresseLide, premiereMesure, nbMesures) {
+    // const [Donnees, setDonnees] = useState([]);
+    let Donnees =[];
+    
+    console.log("début de fonction")
+
+    let demande = "M:" + premiereMesure.toString() + ":" + nbMesures.toString();
+
+    
+    await connectDevice(AdresseLide)
+    
+
+    console.log(caracEnv.uuid)
+    console.log(caracRecep.uuid)
+
+    const subscrpition = caracRecep.monitor((error, char) => {
+      // console.log("erreur de monitor " + error);
+      // console.log("valeur monitor " + base64ToArrayBuffer(new Buffer(char.value)));
+      let indice = (new Buffer(base64ToArrayBuffer(new Buffer(char.value)).slice(0,2))).readUInt16BE(0)
+      let nMesure = (new Buffer(base64ToArrayBuffer(new Buffer(char.value)).slice(2,6))).readUInt32BE(0)
+      let timeStamp = (new Buffer(base64ToArrayBuffer(new Buffer(char.value)).slice(6,10))).readUInt32BE(0)
+      // let timeStamp = new Date((new Buffer(base64ToArrayBuffer(new Buffer(char.value)).slice(6,10))).readUInt32BE(0) * 1000).toLocaleString()
+      let valeurV1 = (new Buffer(base64ToArrayBuffer(new Buffer(char.value)).slice(10,12))).readUInt16BE(0)/10
+      let valeurV2 = (new Buffer(base64ToArrayBuffer(new Buffer(char.value)).slice(12,14))).readUInt16BE(0)/10
+      // console.log(indice + "/" + nMesure + "/" + timeStamp + "/" + valeurV1 + "/" + valeurV2)
+      Donnees.push(new Mesure(indice,nMesure,timeStamp,valeurV1,valeurV2))
+    })
+
+    const commande = await (new Buffer(demande)).toString('base64');
+     
+    console.log(subscrpition)
+    console.log("envoi de " + commande)
+    
+    await caracEnv.writeWithResponse(commande)
+    
+    console.log("fin de fonction")
+
+    let dernierNombre = 999;
+
+    while (Donnees.length != nbMesures && Donnees.length != dernierNombre ) {
+      dernierNombre = Donnees.length
+      // await console.log(Donnees.length)
+      // await console.log(nbMesures)
+      await sleep(100)
+    }
+  
+    return Donnees
+  }
+
+  function base64ToArrayBuffer(stringb64) {
+    let binaryString = base64.decode(stringb64);
+    let binaryLength = binaryString.length;
+    let bytes = new Uint8Array(binaryLength);
+
+    for (let i = 0; i < binaryLength; i++) {
+        let ascii = binaryString.charCodeAt(i);
+        bytes[i] = ascii;
+    }
+    return bytes;
+}
+
   async function testModbus(selectedDevice) {
 
-    console.log("testModbus ?")
+    //DEBUG le manager est deconnecté à partir d'ici
     modBManager = await new modbusBleRtu(manager, selectedDevice.id, serviceSelect.uuid, caracErci.uuid, caracLect);
+                 console.log("le modbus manager est crée")
                     await modBManager.readHoldingRegisters(500,2)
                     .then(async (timestamp) => {
                       const DeuxiemeDateDuLide = new Date(timestamp * 1000)
@@ -105,7 +179,7 @@ const requestPermission = async () => {
                     })
                     await modBManager.readHoldingRegisters(3000,107)
                     .then(async (config) => {
-                      console.log("Configuration Génarale : " + config)
+                      console.log("Configuration Générale : " + config)
                     })
                     await modBManager.readHoldingRegisters(3000,107)
                     .then(async (nomDAppareil) => {
@@ -164,24 +238,24 @@ const requestPermission = async () => {
 
           const readCharacteristic = await manager.characteristicsForDevice(selectedDevice.id, service.uuid)
 
-          await readCharacteristic.forEach( async (characteristic) => {
+          for (let index2 = 0; index2 < readCharacteristic.length; index2++) {
+            const characteristic = readCharacteristic[index2];
 
             console.log(characteristic.uuid)
+            console.log(characteristic.uuid.toString().slice(7,8))
 
-            if ( characteristic.isWritableWithResponse) {
+            if (characteristic.uuid.toString().slice(7,8) == 2) {
               caracErci = characteristic;
-              console.log(characteristic.uuid);
-              const bufR = Buffer.from([0x01, 0x04, 0x01, 0xF4, 0x00, 0x02, 0x31, 0xC5 ]).toString('base64');
-              console.log(bufR);
-              characteristic.writeWithResponse(bufR);
+              console.log("Ecriture : " + characteristic.uuid);
+              // const bufR = Buffer.from([0x01, 0x04, 0x01, 0xF4, 0x00, 0x02, 0x31, 0xC5 ]).toString('base64');
+              // console.log(bufR);
+              // characteristic.writeWithResponse(bufR);
             }
 
-            if (characteristic.isReadable) {
+            if (characteristic.uuid.toString().slice(7,8) == 3) {
               caracLect = characteristic;
-
-              const readChar = await characteristic.read();
         
-              console.log(characteristic.uuid)
+              console.log("Lecture : " + characteristic.uuid)
               
               // await manager.readCharacteristicForDevice(selectedDevice.id, service.uuid, readChar.uuid)
               // .then(async (characteristic) => { 
@@ -193,19 +267,30 @@ const requestPermission = async () => {
               // })
 
               
+            }
 
-              if (typeof caracLect !== "undefined") {
-                console.log(selectedDevice.id);
-                console.log(serviceSelect.uuid);
-                console.log(caracErci.uuid);
-                console.log(caracLect.uuid);     
+             // if (typeof caracLect !== "undefined") {
+              //   console.log(selectedDevice.id);
+              //   console.log(serviceSelect.uuid);
+              //   console.log(caracErci.uuid);
+              //   console.log(caracLect.uuid);     
                 
-              }
+              // } 
 
+            if (characteristic.uuid.toString().slice(7,8) == 4) {
               
+              caracEnv = characteristic;
+              console.log("Notifiable : " + caracEnv.uuid)
+            }
+
+            if (characteristic.uuid.toString().slice(7,8) == 5) {
+  
+              caracRecep = characteristic;
+              console.log("Notifie : " + caracRecep.uuid)
             }
             
-          })
+          }
+
           
         }
         
@@ -408,6 +493,15 @@ const BluetoothScanner = () => {
             } 
           } />
 
+          <Button
+          title="surveillance"
+          color="#841584"
+          onPress={async () => {
+            const result = await monitorValues(tablLideEnreg[0],0,10000)
+            console.log(" valeur de retour : " + result)
+            console.log(" taille Du tableau : " + result.length)
+            } 
+          } />
 
       </View>
 
