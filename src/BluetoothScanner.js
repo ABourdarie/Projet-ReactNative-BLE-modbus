@@ -109,15 +109,22 @@ const requestPermission = async () => {
     console.log(caracEnv.uuid)
     console.log(caracRecep.uuid)
 
+    let charValue;
+
     const subscrpition = caracRecep.monitor((error, char) => {
+      try {
+        charValue = char.value;
+      } catch (error) {
+        console.log("la fonction est a l'arret")
+      }
       // console.log("erreur de monitor " + error);
       // console.log("valeur monitor " + base64ToArrayBuffer(new Buffer(char.value)));
-      let indice = (new Buffer(base64ToArrayBuffer(new Buffer(char.value)).slice(0,2))).readUInt16BE(0)
-      let nMesure = (new Buffer(base64ToArrayBuffer(new Buffer(char.value)).slice(2,6))).readUInt32BE(0)
-      let timeStamp = (new Buffer(base64ToArrayBuffer(new Buffer(char.value)).slice(6,10))).readUInt32BE(0)
-      // let timeStamp = new Date((new Buffer(base64ToArrayBuffer(new Buffer(char.value)).slice(6,10))).readUInt32BE(0) * 1000).toLocaleString()
-      let valeurV1 = (new Buffer(base64ToArrayBuffer(new Buffer(char.value)).slice(10,12))).readUInt16BE(0)/10
-      let valeurV2 = (new Buffer(base64ToArrayBuffer(new Buffer(char.value)).slice(12,14))).readUInt16BE(0)/10
+      let indice = (new Buffer(base64ToArrayBuffer(new Buffer(charValue)).slice(0,2))).readUInt16BE(0)
+      let nMesure = (new Buffer(base64ToArrayBuffer(new Buffer(charValue)).slice(2,6))).readUInt32BE(0)
+      let timeStamp = (new Buffer(base64ToArrayBuffer(new Buffer(charValue)).slice(6,10))).readUInt32BE(0)
+      // let timeStamp = new Date((new Buffer(base64ToArrayBuffer(new Buffer(charValue)).slice(6,10))).readUInt32BE(0) * 1000).toLocaleString()
+      let valeurV1 = (new Buffer(base64ToArrayBuffer(new Buffer(charValue)).slice(10,12))).readUInt16BE(0)/10
+      let valeurV2 = (new Buffer(base64ToArrayBuffer(new Buffer(charValue)).slice(12,14))).readUInt16BE(0)/10
       // console.log(indice + "/" + nMesure + "/" + timeStamp + "/" + valeurV1 + "/" + valeurV2)
       Donnees.push(new Mesure(indice,nMesure,timeStamp,valeurV1,valeurV2))
     })
@@ -139,6 +146,8 @@ const requestPermission = async () => {
       // await console.log(nbMesures)
       await sleep(100)
     }
+
+    subscrpition.remove()
   
     return Donnees
   }
