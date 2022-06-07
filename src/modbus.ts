@@ -124,10 +124,12 @@ export default class modbusBleRtu {
     
     //Verfication du checksum
     if (swap16(CRC(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(0,-2))).toString(16)
-    == buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(-2).toString('hex')) {
+    == (buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(-2).readUIntLE(0).toString(16) + buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(-2).readUIntLE(1).toString(16))) {
 
       return (buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64')).toString('hex')
     } else {
+      console.log(swap16(CRC(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(0,-2))).toString(16))
+      console.log(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(-2).readUIntLE(0).toString(16) + buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(-2).readUIntLE(1).toString(16))
       return "Mauvais checksum"
     }
   
@@ -266,20 +268,32 @@ export default class modbusBleRtu {
 
   /**
      * Fonction suplémentaire avant FC=16 "Formater des elements de config".
+     * Elles ont pour but de modifier la configuration d'un seul coup avec un tableau contenant les modifications
      *
-     * @param {number} registreDuParametreAModifier registre du paramètre que l'on veut modifier dans la config.
-     * @param {number} nombreDeRegistreAEcrire Le nombre de registre correspondant a ce parametre.
-     * @param {Array} valeursEnTableau les nouvelles valeurs sous forme de tableau(Array).
+     * @param {number} debutDuRegConf adresse du premier registre que l'on veut modifier dans la config.
+     * @param {number} nombreDeRegistre Le nombre de registre correspondant a cette configuration.
+     * @param {number} registreDuParametreAModifier Numero du premier registre à modifier
+     * @param {number} nombreDeRegistreAEcrire Le nombre de registre correspondant à la valeur
+     * @param {Buffer} valeursEnBuff La nouvelle valeur pour ces registres
+     * @param {Buffer} bufferInitial Le buffer qui doit être modifié
+     * @return {promise} Le nouveau buffer
      *
      */
    public async writeConfigReg (debutDuRegConf:number, nombreDeRegistre:number, registreDuParametreAModifier: number, nombreDeRegistreAEcrire: number, valeursEnBuff: any, bufferInitial: Buffer){
 
-    const premiereValeurAEcrire = 3 + (registreDuParametreAModifier - debutDuRegConf)*2
+    console.log("debut writeConfigReg")
+
+    const premiereValeurAEcrire =  (registreDuParametreAModifier - debutDuRegConf) + 4
+
+    console.log("position de la première valeur a écrire : " + premiereValeurAEcrire)
     
 
     let buffEntier = bufferInitial.toString('hex');
 
-    let chainePreValeur =  new Buffer.from(buffEntier.slice(0, premiereValeurAEcrire * 2  - 6 ), 'hex')
+    console.log("buffer entier : " + bufferInitial)
+    console.log("buffer entier : " + buffEntier)
+
+    let chainePreValeur =  new Buffer.from(buffEntier.slice(3, premiereValeurAEcrire), 'hex')
     let chainePostValeur =  new Buffer.from(buffEntier.slice(premiereValeurAEcrire * 2  + nombreDeRegistreAEcrire * 2 - 6), 'hex')
 
     console.log(chainePreValeur)
@@ -292,8 +306,6 @@ export default class modbusBleRtu {
     let tabBuffer;
 
     let buffATransferer;
-
-    
 
     if( typeof valeursEnBuff == 'string') {
 
@@ -308,7 +320,7 @@ export default class modbusBleRtu {
     
       console.log("taille du mot : " + arrCompte[0].length);
 
-      const array = new Array((nombreDeRegistreAEcrire * 2 - arrCompte[0].length) / 2 - 1).fill(0);
+      const array = new Array((nombreDeRegistreAEcrire * 2 - arrCompte[0].length) / 2 -1 ).fill(0);
 
       console.log("nombre de zero : " + array.length)
 
@@ -322,9 +334,6 @@ export default class modbusBleRtu {
 
     } else {
       console.log("test deuxième fonc")
-
-      chainePreValeur =  new Buffer.from(buffEntier.slice(6, premiereValeurAEcrire * 2 + 2 ), 'hex')
-      chainePostValeur =  new Buffer.from(buffEntier.slice(premiereValeurAEcrire * 2  + nombreDeRegistreAEcrire * 2 + 2 , -4), 'hex')
 
       console.log(valeursEnBuff)
 
@@ -363,7 +372,7 @@ export default class modbusBleRtu {
 
   let registreActuel = await this.readHoldingRegisters(debutDuRegConf,nombreDeRegistre);
 
-  registreActuel = registreActuel.slice(6,-4)
+  registreActuel = registreActuel.slice(6,-4);
   console.log(registreActuel)
 
   function Modifications(valeur, registreInital, nombreDeRegistre){
@@ -373,15 +382,16 @@ export default class modbusBleRtu {
   }
   
   var TabDeModifs = [
-    new Modifications("TEMPE1", 4001, 12),
+    new Modifications("Cave 1", 4001, 12),
     new Modifications(1, 4062, 1),
     new Modifications(356, 4064, 1),
   ]
 
   //Il faudra remplacer le tableau de modif par celui passé en parametre
-  TabDeModifs.forEach(modification => {
-    registreActuel = this.writeConfigReg(debutDuRegConf, nombreDeRegistre, modification.registreInital, modification.nombreDeRegistre, modification.valeur, registreActuel)
-  });
+  for (let index = 0; index < TabDeModifs.length; index++) {
+    const element = await TabDeModifs[index];
+    registreActuel = await this.writeConfigReg(debutDuRegConf, nombreDeRegistre, element.registreInital, element.nombreDeRegistre, element.valeur, registreActuel)
+  }
 
   await this.writeFC16(debutDuRegConf,registreActuel.toString('hex'))
 } 

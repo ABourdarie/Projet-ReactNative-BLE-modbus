@@ -164,9 +164,15 @@ const requestPermission = async () => {
     return bytes;
 }
 
+  /** Fonction Modbus qui va créer un nouveau manager modbus et executer les requetes
+   * @param {DeviceBLE} selectedDevice L'appareil sur lequel on veut lire des informations.
+   * @example 
+   * testModbus(tablLideEnreg[0])
+   * @return rien
+   * fait de l'affichage en console mais peut être utilisé par l'application
+   */
   async function testModbus(selectedDevice) {
 
-    //DEBUG le manager est deconnecté à partir d'ici
     modBManager = await new modbusBleRtu(manager, selectedDevice.id, serviceSelect.uuid, caracErci.uuid, caracLect);
                  console.log("le modbus manager est crée")
                     await modBManager.readHoldingRegisters(500,2)
@@ -202,6 +208,11 @@ const requestPermission = async () => {
                     .then(async (etatAlarme) => {
                       console.log("Etat des alarmes : " + etatAlarme)
                     })
+                    // await modBManager.readHoldingRegisters(4000,75)
+                    // .then(async (Voies) => {
+                    //   console.log("Config voies " + Voies)
+                    // })
+                    await modBManager.changeWholeConfig(4000, 75, 0)
                     // await modBManager.readHoldingRegisters(3000,107)
                     // .then(async (config) => {
                     //   console.log("configuration buffer " + config)
@@ -211,7 +222,6 @@ const requestPermission = async () => {
                     //   let NouveauNom = "LIDE 2V Alexandre";
                     //   let AncienNom = "LIDE 2V Alex";
                     //   console.log(NouveauNom + "/" + AncienNom)
-                    //   // await modbusManager.changeWholeConfig(4000, 75, 0)
                     //   // await modbusManager.writeConfigReg(3000, 107, 3013, 25, NouveauNom)
                     //   // .then( async () => {
                     //   //   console.log("Timing ?")
@@ -221,6 +231,14 @@ const requestPermission = async () => {
   }
 
 
+
+  /** Fonction BLE qui se charge de se connecter et de découvrir les caractéristiques
+   * @param {DeviceBLE} selectedDevice L'appareil sur lequel on veut se connecter.
+   * @example 
+   * connectDevice(tablLideEnreg[0])
+   * @return rien
+   * établit la connexion et change les paramètres globaux (caracLect etc...)
+   */
   async function connectDevice(selectedDevice) {
 
     manager.stopDeviceScan();
@@ -266,6 +284,7 @@ const requestPermission = async () => {
         
               console.log("Lecture : " + characteristic.uuid)
               
+              // exemple de lecture pour la date de l'appareil
               // await manager.readCharacteristicForDevice(selectedDevice.id, service.uuid, readChar.uuid)
               // .then(async (characteristic) => { 
               //   console.log(characteristic.deviceID)
