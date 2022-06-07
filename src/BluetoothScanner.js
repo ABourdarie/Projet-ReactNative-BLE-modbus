@@ -196,10 +196,6 @@ const requestPermission = async () => {
                     .then(async (config) => {
                       console.log("Configuration Générale : " + config)
                     })
-                    await modBManager.readHoldingRegisters(3000,107)
-                    .then(async (nomDAppareil) => {
-                      console.log("Nom de l'appareil : " + nomDAppareil)
-                    })
                     await modBManager.readHoldingRegisters(596,67)
                     .then(async (valeursVoies) => {
                       console.log("Valeurs des voies : " + valeursVoies)
@@ -208,10 +204,10 @@ const requestPermission = async () => {
                     .then(async (etatAlarme) => {
                       console.log("Etat des alarmes : " + etatAlarme)
                     })
-                    // await modBManager.readHoldingRegisters(4000,75)
-                    // .then(async (Voies) => {
-                    //   console.log("Config voies " + Voies)
-                    // })
+                    await modBManager.readHoldingRegisters(4000,75)
+                    .then(async (Voies) => {
+                      console.log("Config voies " + Voies)
+                    })
                     await modBManager.changeWholeConfig(4000, 75, 0)
                     // await modBManager.readHoldingRegisters(3000,107)
                     // .then(async (config) => {
