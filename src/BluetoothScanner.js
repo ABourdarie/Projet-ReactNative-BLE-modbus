@@ -27,7 +27,6 @@ let tablLideEnreg = [];
 
 let enCours = false;
 let refreshIntervalId;
-var dt = new Date();
 moment.locale('fr');
 require('./modbus');
 
@@ -208,7 +207,7 @@ const requestPermission = async () => {
                     .then(async (Voies) => {
                       console.log("Config voies " + Voies)
                     })
-                    await modBManager.changeWholeConfig(4000, 75, 0)
+                    // await modBManager.changeWholeConfig(4000, 75, 0)
                     // await modBManager.readHoldingRegisters(3000,107)
                     // .then(async (config) => {
                     //   console.log("configuration buffer " + config)
@@ -342,7 +341,6 @@ const BluetoothScanner = () => {
   const [selectedDevice, setSelectedDevice] = useState({});
   const [buttonColor, setButtonColor] = useState(false);
 
-
   useEffect(() => {
     manager.onStateChange((state) => {
       const subscription = manager.onStateChange(async (state) => {
@@ -358,8 +356,7 @@ const BluetoothScanner = () => {
   }, [manager]);
 
   return (
-    <><HTMLtoPDF />
-    <Text> {moment(dt).format('hh-mm-ss')} </Text>
+    <>
     <View style={{ flex: 1, padding: 10 }}>
       <View style={{ flex: 1, padding: 10, width: 200 }}>
         <Text style={{ fontWeight: "bold" }}>Bluetooth Log ({logCount})</Text>
@@ -453,23 +450,34 @@ const BluetoothScanner = () => {
 
       <View style={{ flex: 3, padding: 10 }}>
 
-        <Text style={{ fontWeight: "bold" }}> ({selectedDevice.name}) / ({selectedDevice.id})</Text>
+        <Text style={{ fontWeight: "bold" }}> ({selectedDevice.name}) / ({selectedDevice.id})       ({tablLideEnreg.length})</Text>
 
 
         <Button
           title="add"
           onPress={async () => {
             alert("ajout de Lide");
-            tablLideEnreg.push(selectedDevice)
+            tablLideEnreg.unshift(selectedDevice)
             // connectDevice(selectedDevice);
           } } />
 
         <Button
           title="disconnect"
           onPress={async () => {
-            const btState = await manager.state();
-            //on arrete le scan et on reset l'appareil selectionné   
-           await manager.cancelDeviceConnection(selectedDevice.id);
+            
+            //on arrete le scan et on reset l'appareil selectionné  
+            if (selectedDevice.id != null && manager.isDeviceConnected(selectedDevice.id)) {
+              try {
+                await manager.cancelDeviceConnection(selectedDevice.id);
+                setSelectedDevice({})
+              } catch (error) {
+                console.log(error)
+              }
+              
+            } 
+
+           tablLideEnreg = [];
+
             alert("arret du scan et fin de selection");
             return (true);
           } } />
@@ -477,7 +485,8 @@ const BluetoothScanner = () => {
           <Button
           title="Modbus"
           onPress={async () => {
-            testModbus(selectedDevice);
+            await testModbus(selectedDevice);
+            await manager.cancelDeviceConnection(selectedDevice.id); 
           } } />
           
           <Button
@@ -524,6 +533,7 @@ const BluetoothScanner = () => {
             const result = await monitorValues(tablLideEnreg[0],0,10000)
             console.log(" valeur de retour : " + result)
             console.log(" taille Du tableau : " + result.length)
+            await manager.cancelDeviceConnection(tablLideEnreg[0].id)
             } 
           } />
 

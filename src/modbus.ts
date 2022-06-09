@@ -283,7 +283,7 @@ export default class modbusBleRtu {
 
     console.log("debut writeConfigReg")
 
-    const premiereValeurAEcrire =  (registreDuParametreAModifier - debutDuRegConf) + 3
+    const premiereValeurAEcrire =  (registreDuParametreAModifier - debutDuRegConf) + 1
 
     console.log("position de la première valeur a écrire : " + premiereValeurAEcrire)
     
@@ -292,8 +292,8 @@ export default class modbusBleRtu {
 
     console.log("buffer entier : " + buffSansEnteteEtCrc)
 
-    let chainePreValeur =  new Buffer.from(buffSansEnteteEtCrc.slice(0, premiereValeurAEcrire))
-    let chainePostValeur =  new Buffer.from(buffSansEnteteEtCrc.slice(premiereValeurAEcrire  + nombreDeRegistreAEcrire * 2))
+    let chainePreValeur =  new Buffer.from(buffSansEnteteEtCrc.slice(0, premiereValeurAEcrire * 2))
+    let chainePostValeur =  new Buffer.from(buffSansEnteteEtCrc.slice(premiereValeurAEcrire * 2 + nombreDeRegistreAEcrire * 2))
 
     console.log("chaine debut : " + chainePreValeur)
     console.log("chaine de fin : " + chainePostValeur)
@@ -316,20 +316,21 @@ export default class modbusBleRtu {
 
       valeurACopier = new Buffer.from((valeursEnBuff))
 
-      // console.log("nouveau nom du lide : " + valeurACopier)
+      console.log("nouveau nom du lide : " + valeurACopier)
     
       let arrCompte = new Array(valeursEnBuff.toString())
     
       console.log("taille du mot : " + arrCompte[0].length);
 
+      // const test = new Buffer.alloc((nombreDeRegistreAEcrire * 2 - arrCompte[0].length) / 2 - 1).fill(0)
       const array = new Array((nombreDeRegistreAEcrire * 2 - arrCompte[0].length) / 2 - 1 ).fill(0);
 
       console.log("nombre de zero : " + array.length)
 
       console.log("Taille totale : " + array.length + "*2 + " + arrCompte[0].length + "/" + nombreDeRegistreAEcrire * 2 )
-      let bufRemplissage = new Buffer.from(array, 'hex' );
+      let bufRemplissage = new Buffer.from(array, 'hex');
 
-      console.log("Buffer de remplissage " + bufRemplissage.toString('hex'))
+      console.log("Buffer de remplissage " + bufRemplissage.toString())
       tabBuffer = new Array(chainePreValeur,bufRemplissage, valeurACopier, new Buffer.from([0,0]), chainePostValeur)
 
       buffATransferer =  Buffer.concat(tabBuffer)
@@ -341,28 +342,26 @@ export default class modbusBleRtu {
 
       console.log(valeursEnBuff)
 
-      valeurACopier = new Buffer.from([valeursEnBuff], 'hex')
+      valeurACopier = valeursEnBuff.toString()
 
       console.log(valeurACopier)
 
-      tabBuffer = new Array(chainePreValeur, valeurACopier, chainePostValeur)
+      tabBuffer = new Array(chainePreValeur, chainePostValeur)
 
       buffATransferer =  Buffer.concat(tabBuffer)
 
-      buffATransferer.writeUInt16BE(valeursEnBuff, (registreDuParametreAModifier-debutDuRegConf) / 2);
+      console.log(buffATransferer.toString())
+
+      buffATransferer.writeUInt8BE(valeurACopier, premiereValeurAEcrire * 2);
 
 
     }
 
-    console.log(tabBuffer)
-
-     buffATransferer =  Buffer.concat(tabBuffer)
-
-    console.log(buffATransferer)
-
     return buffATransferer;
 
 }
+
+
 
 /**
      * Fonction a appeler avec un tableau qui consigne toutes les modifications. Cette fonction va toutes les appliquer
