@@ -128,6 +128,8 @@ const requestPermission = async () => {
 
     
     await connectDevice(adresseLide)
+
+    console.log(moment(new Date()).format("mm-ss-ms"))
     
 
     console.log(caracEnv.uuid)
@@ -522,7 +524,7 @@ const BluetoothScanner = () => {
             }
 
             console.log(moment(new Date()).format("mm-ss-ms"));
-            
+
             await manager.cancelDeviceConnection(tablLideEnreg[0].id)
             } 
           } />
@@ -568,9 +570,10 @@ const BluetoothScanner = () => {
           title="surveillance"
           color="#841584"
           onPress={async () => {
-            const result = await monitorValues(tablLideEnreg[0],0,10000)
+            const result = await monitorValues(tablLideEnreg[0],0,400)
             console.log(" valeur de retour : " + result.toString())
             console.log(" taille Du tableau : " + result.length)
+            console.log(moment(new Date()).format("mm-ss-ms"))
             await manager.cancelDeviceConnection(tablLideEnreg[0].id)
             } 
           } />

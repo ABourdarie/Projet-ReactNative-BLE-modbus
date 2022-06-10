@@ -25,6 +25,7 @@ import { PromiseUserRequest } from '../node_modules/jsmodbus/dist/user-request.j
 import { BleManager, NativeCharacteristic  } from 'react-native-ble-plx';
 import { EventEmitter } from 'react-native';
 import base64 from 'react-native-base64';
+import crc from 'crc'
 
 
 var Buffer = require('buffer/').Buffer  // note: the trailing slash is important!
@@ -124,13 +125,15 @@ export default class modbusBleRtu {
     }
     
     //Verfication du checksum
-    if (swap16(CRC(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value, 'base64').slice(0,-2))).toString(16)
-    == (buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value, 'base64').slice(-2).readUIntLE(0).toString(16) + buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(-2).readUIntLE(1).toString(16))) {
+    if (swap16(CRC(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value, 'base64').slice(0,-2)))
+    == (buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value, 'base64').slice(-2)))  {
 
       return this.base64ToArrayBuffer(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString()))
     } else {
-      console.log(swap16(CRC(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value, 'base64').slice(0,-2))).toString(16))
-      console.log(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value, 'base64').slice(-2).readUIntLE(0).toString(16) + buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value, 'base64').slice(-2).readUIntLE(1).toString(16))
+      let bufferInitial = (buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value));
+      console.log(bufferInitial)
+      console.log((new Buffer.from(bufferInitial.slice(-4)).readUIntBE(0,2)).toString('hex'))
+      console.log((crc.crc16modbus(new Buffer.from(bufferInitial.slice(0,-4)).toString('hex'))))
       return "Mauvais checksum"
     }
   
