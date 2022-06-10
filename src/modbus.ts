@@ -118,8 +118,6 @@ export default class modbusBleRtu {
     await this.readInputRegisters(start, count)
 
     const buffer = Buffer;
-
-    //IL FAUT REVOIR LA VERIFICATION DU CHECKSUM
     
     if (count <= 10){
       return (buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').readUIntBE(3, count * 2))
@@ -353,13 +351,11 @@ export default class modbusBleRtu {
 
       console.log(valeurACopier)
 
-      tabBuffer = new Array(chainePreValeur, chainePostValeur)
-
-      buffATransferer =  Buffer.concat(tabBuffer)
+      buffATransferer = buffSansEnteteEtCrc;
 
       console.log(buffATransferer)
 
-      buffATransferer.writeUInt16BE(valeurACopier, premiereValeurAEcrire);
+      buffATransferer.writeUIntBE(valeurACopier, premiereValeurAEcrire, 2);
 
 
     }
@@ -395,9 +391,9 @@ export default class modbusBleRtu {
   }
   
   var TabDeModifs = [
-    new Modifications("Cave 1", 4001, 12),
+    new Modifications("Frigo2", 4001, 12),
     new Modifications(1, 4062, 1),
-    new Modifications(356, 4064, 1),
+    new Modifications(312, 4064, 1),
   ]
 
   //Il faudra remplacer le tableau de modif par celui passé en parametre
