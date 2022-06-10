@@ -24,6 +24,7 @@ import { WriteMultipleCoilsResponseBody } from '../node_modules/jsmodbus/dist/re
 import { PromiseUserRequest } from '../node_modules/jsmodbus/dist/user-request.js'
 import { BleManager, NativeCharacteristic  } from 'react-native-ble-plx';
 import { EventEmitter } from 'react-native';
+import base64 from 'react-native-base64';
 
 
 var Buffer = require('buffer/').Buffer  // note: the trailing slash is important!
@@ -117,19 +118,21 @@ export default class modbusBleRtu {
     await this.readInputRegisters(start, count)
 
     const buffer = Buffer;
+
+    //IL FAUT REVOIR LA VERIFICATION DU CHECKSUM
     
     if (count <= 10){
       return (buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').readUIntBE(3, count * 2))
     }
     
     //Verfication du checksum
-    if (swap16(CRC(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(0,-2))).toString(16)
-    == (buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(-2).readUIntLE(0).toString(16) + buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(-2).readUIntLE(1).toString(16))) {
+    if (swap16(CRC(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value, 'base64').slice(0,-2))).toString(16)
+    == (buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value, 'base64').slice(-2).readUIntLE(0).toString(16) + buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(-2).readUIntLE(1).toString(16))) {
 
-      return (buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64')).toString('hex')
+      return this.base64ToArrayBuffer(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString()))
     } else {
-      console.log(swap16(CRC(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(0,-2))).toString(16))
-      console.log(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(-2).readUIntLE(0).toString(16) + buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value.toString(), 'base64').slice(-2).readUIntLE(1).toString(16))
+      console.log(swap16(CRC(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value, 'base64').slice(0,-2))).toString(16))
+      console.log(buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value, 'base64').slice(-2).readUIntLE(0).toString(16) + buffer.from(await (await this.manager.readCharacteristicForDevice(this.deviceId, this.service, this.carateristiqueLect.uuid)).value, 'base64').slice(-2).readUIntLE(1).toString(16))
       return "Mauvais checksum"
     }
   
@@ -283,22 +286,22 @@ export default class modbusBleRtu {
 
     console.log("debut writeConfigReg")
 
-    const premiereValeurAEcrire =  (registreDuParametreAModifier - debutDuRegConf) + 1
+    const premiereValeurAEcrire =  (registreDuParametreAModifier - debutDuRegConf) * 2
 
     console.log("position de la première valeur a écrire : " + premiereValeurAEcrire)
     
 
-    let buffSansEnteteEtCrc = bufferInitial;
+    let buffSansEnteteEtCrc = new Buffer(bufferInitial);
 
-    console.log("buffer entier : " + buffSansEnteteEtCrc)
+    console.log("buffer entier : " + new Uint8Array(buffSansEnteteEtCrc))
 
-    let chainePreValeur =  new Buffer.from(buffSansEnteteEtCrc.slice(0, premiereValeurAEcrire * 2))
-    let chainePostValeur =  new Buffer.from(buffSansEnteteEtCrc.slice(premiereValeurAEcrire * 2 + nombreDeRegistreAEcrire * 2))
+    let chainePreValeur =  new Buffer.from(buffSansEnteteEtCrc.slice(0, premiereValeurAEcrire))
+    let chainePostValeur =  new Buffer.from(buffSansEnteteEtCrc.slice(premiereValeurAEcrire + nombreDeRegistreAEcrire * 2))
 
-    console.log("chaine debut : " + chainePreValeur)
-    console.log("chaine de fin : " + chainePostValeur)
+    console.log("chaine debut : " + new Uint8Array(chainePreValeur))
+    console.log("chaine de fin : " + new Uint8Array(chainePostValeur))
 
-    console.log(typeof valeursEnBuff)
+    // console.log(typeof valeursEnBuff.toString('hex'))
 
     let valeurACopier
 
@@ -308,30 +311,34 @@ export default class modbusBleRtu {
 
     if( typeof valeursEnBuff == 'string') {
 
-      valeursEnBuff = this.ascii_to_hex(valeursEnBuff)
+      // valeursEnBuff = this.ascii_to_hex(valeursEnBuff)
+      valeursEnBuff = base64.encode(valeursEnBuff)
+      valeursEnBuff = new Buffer(this.base64ToArrayBuffer(valeursEnBuff))
 
-      console.log("nouveau nom du lide : " + valeursEnBuff)
+      console.log("nouveau nom du lide : " + new Uint8Array(valeursEnBuff))
 
       console.log("testPremiereFonc")
-
-      valeurACopier = new Buffer.from((valeursEnBuff))
-
-      console.log("nouveau nom du lide : " + valeurACopier)
     
-      let arrCompte = new Array(valeursEnBuff.toString())
+      let arrCompte = new Uint8Array(valeursEnBuff)
     
-      console.log("taille du mot : " + arrCompte[0].length);
+      console.log("taille du mot : " + valeursEnBuff.length);
 
-      // const test = new Buffer.alloc((nombreDeRegistreAEcrire * 2 - arrCompte[0].length) / 2 - 1).fill(0)
-      const array = new Array((nombreDeRegistreAEcrire * 2 - arrCompte[0].length) / 2 - 1 ).fill(0);
+      const array = new Uint8Array(nombreDeRegistreAEcrire * 2 - arrCompte.length).fill(0);
 
       console.log("nombre de zero : " + array.length)
 
-      console.log("Taille totale : " + array.length + "*2 + " + arrCompte[0].length + "/" + nombreDeRegistreAEcrire * 2 )
-      let bufRemplissage = new Buffer.from(array, 'hex');
+      console.log("Taille totale : " + array.length + " + " + arrCompte.length + "/" + nombreDeRegistreAEcrire * 2 )
+     
+      let bufRemplissage = (new Buffer.from(array));
 
-      console.log("Buffer de remplissage " + bufRemplissage.toString())
-      tabBuffer = new Array(chainePreValeur,bufRemplissage, valeurACopier, new Buffer.from([0,0]), chainePostValeur)
+      console.log("Buffer de remplissage " + bufRemplissage)
+
+      console.log(typeof chainePreValeur)
+      console.log(typeof valeursEnBuff)
+      console.log(typeof bufRemplissage)
+      console.log(typeof chainePostValeur)
+
+      tabBuffer = new Array(chainePreValeur, valeursEnBuff, bufRemplissage, chainePostValeur)
 
       buffATransferer =  Buffer.concat(tabBuffer)
 
@@ -342,7 +349,7 @@ export default class modbusBleRtu {
 
       console.log(valeursEnBuff)
 
-      valeurACopier = valeursEnBuff.toString()
+      valeurACopier = valeursEnBuff
 
       console.log(valeurACopier)
 
@@ -350,9 +357,9 @@ export default class modbusBleRtu {
 
       buffATransferer =  Buffer.concat(tabBuffer)
 
-      console.log(buffATransferer.toString())
+      console.log(buffATransferer)
 
-      buffATransferer.writeUInt8BE(valeurACopier, premiereValeurAEcrire * 2);
+      buffATransferer.writeUInt16BE(valeurACopier, premiereValeurAEcrire);
 
 
     }
@@ -360,6 +367,7 @@ export default class modbusBleRtu {
     return buffATransferer;
 
 }
+
 
 
 
@@ -375,7 +383,9 @@ export default class modbusBleRtu {
 
   let registreActuel = await this.readHoldingRegisters(debutDuRegConf,nombreDeRegistre);
 
-  registreActuel = registreActuel.slice(6,-4);
+  console.log("test1 :::: " + registreActuel)
+
+  registreActuel = registreActuel.slice(3,-2);
   console.log(registreActuel)
 
   function Modifications(valeur, registreInital, nombreDeRegistre){
@@ -399,6 +409,17 @@ export default class modbusBleRtu {
   await this.writeFC16(debutDuRegConf,registreActuel.toString('hex'))
 } 
 
+public base64ToArrayBuffer(stringb64) {
+  let binaryString = base64.decode(stringb64);
+  let binaryLength = binaryString.length;
+  let bytes = new Uint8Array(binaryLength);
+
+  for (let i = 0; i < binaryLength; i++) {
+      let ascii = binaryString.charCodeAt(i);
+      bytes[i] = ascii;
+  }
+  return bytes;
+}
 
 private ascii_to_hex(str)
   {

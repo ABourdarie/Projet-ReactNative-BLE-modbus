@@ -93,7 +93,32 @@ const requestPermission = async () => {
     this.valeurV2 = valeurV2;
   }
 
-  async function monitorValues(AdresseLide, premiereMesure, nbMesures) {
+  async function searchForST(adresseLide,premiereMesure,nbMesures) {
+
+    let demande = "C:" + premiereMesure.toString() + ":" + nbMesures.toString();
+
+    const commande = await (new Buffer(demande)).toString('base64');
+
+    // console.log(commande)
+
+    // console.log(caracEnv.uuid)
+    // console.log(caracRecep.uuid)
+
+    await caracEnv.writeWithResponse(commande);
+
+    const caracteristique = await caracRecep.read()
+    
+    let valeurFinale = await caracteristique.value;
+
+    // console.log(typeof valeurFinale)
+
+    valeurFinale = base64.decode(valeurFinale);
+
+    return (valeurFinale)
+
+  }
+
+  async function monitorValues(adresseLide, premiereMesure, nbMesures) {
     // const [Donnees, setDonnees] = useState([]);
     let Donnees =[];
     
@@ -102,7 +127,7 @@ const requestPermission = async () => {
     let demande = "M:" + premiereMesure.toString() + ":" + nbMesures.toString();
 
     
-    await connectDevice(AdresseLide)
+    await connectDevice(adresseLide)
     
 
     console.log(caracEnv.uuid)
@@ -181,7 +206,7 @@ const requestPermission = async () => {
                     })
                     await modBManager.readHoldingRegisters(502,1)
                     .then(async (nbVoies) => {
-                      console.log("Nombre de voies : " + nbVoies)
+                      console.log("Nombre de voies : " + new Buffer(nbVoies))
                     })
                     await modBManager.readHoldingRegisters(503,1)
                     .then(async (nbVoiesMax) => {
@@ -207,7 +232,7 @@ const requestPermission = async () => {
                     .then(async (Voies) => {
                       console.log("Config voies " + Voies)
                     })
-                    // await modBManager.changeWholeConfig(4000, 75, 0)
+                    await modBManager.changeWholeConfig(4000, 75, 0)
                     // await modBManager.readHoldingRegisters(3000,107)
                     // .then(async (config) => {
                     //   console.log("configuration buffer " + config)
@@ -481,14 +506,27 @@ const BluetoothScanner = () => {
             alert("arret du scan et fin de selection");
             return (true);
           } } />
-
-          <Button
-          title="Modbus"
-          onPress={async () => {
-            await testModbus(selectedDevice);
-            await manager.cancelDeviceConnection(selectedDevice.id); 
-          } } />
           
+          <Button
+          title="MiniTrame BLE Microlide"
+          color="#458951"
+          onPress={async () => {
+
+            await connectDevice(tablLideEnreg[0])
+
+            console.log(moment(new Date()).format("mm-ss-ms"));
+
+            for(let i=0; i<= 100; i++) {
+              const result1 = await searchForST(tablLideEnreg[0],0,1)
+              console.log(" valeur de retour : " + result1)
+            }
+
+            console.log(moment(new Date()).format("mm-ss-ms"));
+            
+            await manager.cancelDeviceConnection(tablLideEnreg[0].id)
+            } 
+          } />
+
           <Button
           title="START"
           onPress={async () => {
@@ -501,7 +539,7 @@ const BluetoothScanner = () => {
               }
             } , 100);
             
-          } } />
+          } } />    
 
           <Button
           title="STOP"
@@ -531,7 +569,7 @@ const BluetoothScanner = () => {
           color="#841584"
           onPress={async () => {
             const result = await monitorValues(tablLideEnreg[0],0,10000)
-            console.log(" valeur de retour : " + result)
+            console.log(" valeur de retour : " + result.toString())
             console.log(" taille Du tableau : " + result.length)
             await manager.cancelDeviceConnection(tablLideEnreg[0].id)
             } 
